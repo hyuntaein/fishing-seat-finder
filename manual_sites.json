@@ -1,0 +1,37 @@
+[
+  {
+    "name": "아라호",
+    "platform": "manual",
+    "region": "기타",
+    "port": "",
+    "base_url": "http://www.araho.co.kr/"
+  },
+  {
+    "name": "야무진피싱",
+    "platform": "manual",
+    "region": "기타",
+    "port": "",
+    "base_url": "http://www.yamujinfishing.com/"
+  },
+  {
+    "name": "나폴리호",
+    "platform": "manual",
+    "region": "기타",
+    "port": "",
+    "base_url": "https://www.napoliho.net/"
+  },
+  {
+    "name": "뉴하와이호",
+    "platform": "manual",
+    "region": "기타",
+    "port": "",
+    "base_url": "http://newhawaii.co.kr/"
+  },
+  {
+    "name": "한글도메인 낚시 사이트",
+    "platform": "manual",
+    "region": "기타",
+    "port": "",
+    "base_url": "http://xn--bj1bs41avxo.com/"
+  }
+]
