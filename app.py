@@ -22,7 +22,13 @@ HEADERS_JSON = {
 HEADERS_HTML = {"User-Agent": HEADERS_JSON["User-Agent"], "Accept": "text/html,*/*"}
 
 REGIONS = ["전체", "인천·경기", "충남", "충북", "전북", "전남", "경북", "경남", "강원", "제주", "기타"]
-FISH_OPTIONS = ["전체", "문어", "주꾸미", "갑오징어", "광어", "우럭", "참돔", "타이라바", "갈치", "농어", "기타"]
+
+# 어종과 낚시방식을 분리.
+FISH_OPTIONS = ["전체", "문어", "주꾸미", "갑오징어", "광어", "우럭", "참돔", "갈치", "농어", "백조기", "대구", "기타"]
+METHOD_OPTIONS = ["전체", "타이라바", "다운샷", "외수질", "생미끼", "지깅", "캐스팅", "텐야", "팁런", "기타"]
+
+METHOD_WORDS = set(METHOD_OPTIONS[1:])
+FISH_WORDS = set(FISH_OPTIONS[1:])
 
 
 def load_json(path: Path, default):
@@ -52,6 +58,31 @@ def build_detail_url(base_url: str, schedule_no) -> str:
     return f"{base_url.rstrip('/')}/mypage/reservation_ready/{schedule_no}"
 
 
+def split_species_and_method(raw: str):
+    """
+    선상24 상세페이지의 '어종 : 참돔 / 타이라바' 같은 값을
+    어종=참돔, 낚시방식=타이라바 로 분리한다.
+    """
+    if not raw:
+        return "", ""
+
+    parts = [p.strip() for p in re.split(r"[/,·|]+", raw) if p.strip()]
+    species = []
+    methods = []
+
+    for part in parts:
+        clean = re.sub(r"\s+", " ", part).strip()
+        if clean in METHOD_WORDS:
+            methods.append(clean)
+        elif clean in FISH_WORDS:
+            species.append(clean)
+        else:
+            # 모르는 단어는 일단 어종 쪽에 둔다.
+            species.append(clean)
+
+    return " / ".join(species), " / ".join(methods)
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_reservation_json(base_url: str, target_date_iso: str):
     target_date = datetime.strptime(target_date_iso, "%Y-%m-%d").date()
@@ -79,25 +110,25 @@ def fetch_detail_page(base_url: str, schedule_no):
     if m:
         time_text = re.sub(r"\s+", "", m.group(1))
 
-    fish = ""
+    raw_fish = ""
     m = re.search(r"어종\s*[:：]\s*([^\n]+)", text)
     if m:
-        fish = m.group(1).strip()
+        raw_fish = m.group(1).strip()
 
-    lines = [x.strip() for x in text.splitlines() if x.strip()]
-    ship_title = lines[0] if lines else ""
+    species, method = split_species_and_method(raw_fish)
 
     return {
         "detail_url": url,
-        "ship_title": ship_title,
-        "fish": fish,
+        "raw_fish": raw_fish,
+        "species": species,
+        "method": method,
         "price": price,
         "time": time_text,
         "text": text[:1200],
     }
 
 
-def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str):
+def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, method_filter: str):
     target_iso = target.strftime("%Y-%m-%d")
     payload, api_url = fetch_reservation_json(site["base_url"], target_iso)
     rows = payload.get("data", [])
@@ -106,7 +137,7 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str):
     if not target_rows:
         return [{
             "선사명": site["name"], "권역": site.get("region", ""), "출항지": site.get("port", ""),
-            "어종": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
+            "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
             "상태": "일정 없음/확인 필요", "예약링크": site["base_url"], "API": api_url,
             "_group": "확인 필요", "_sort": 80
         }]
@@ -131,11 +162,13 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str):
         except Exception:
             detail = {
                 "detail_url": build_detail_url(site["base_url"], schedule_no),
-                "fish": "", "price": "", "time": "", "text": ""
+                "species": "", "method": "", "price": "", "time": "", "text": ""
             }
 
-        searchable_text = f"{detail.get('fish','')} {detail.get('text','')}"
-        if fish_filter != "전체" and fish_filter not in searchable_text:
+        searchable = f"{detail.get('species','')} {detail.get('method','')} {detail.get('text','')}"
+        if fish_filter != "전체" and fish_filter not in searchable:
+            continue
+        if method_filter != "전체" and method_filter not in searchable:
             continue
 
         if r.get("reservation_end") is True:
@@ -147,7 +180,8 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str):
 
         results.append({
             "선사명": site["name"], "권역": site.get("region", ""), "출항지": site.get("port", ""),
-            "어종": detail.get("fish", ""), "가격": detail.get("price", ""), "출항시간": detail.get("time", ""),
+            "어종": detail.get("species", ""), "낚시방식": detail.get("method", ""),
+            "가격": detail.get("price", ""), "출항시간": detail.get("time", ""),
             "예약인원": f"{reserved}명", "취소인원": f"{canceled}명" if canceled else "",
             "상태": status, "예약링크": detail.get("detail_url") or build_detail_url(site["base_url"], schedule_no),
             "API": api_url, "_group": group, "_sort": sort
@@ -156,30 +190,32 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str):
     if not results:
         return [{
             "선사명": site["name"], "권역": site.get("region", ""), "출항지": site.get("port", ""),
-            "어종": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
-            "상태": "선택 어종 일정 없음", "예약링크": site["base_url"], "API": api_url,
+            "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
+            "상태": "선택 조건 일정 없음", "예약링크": site["base_url"], "API": api_url,
             "_group": "확인 필요", "_sort": 70
         }]
 
     return results
 
 
-def check_manual_site(site: dict, target: date, fish_filter: str):
+def check_manual_site(site: dict, target: date, fish_filter: str, method_filter: str):
     try:
         res = requests.get(site["url"], headers=HEADERS_HTML, timeout=10)
         res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
         text = soup.get_text(" ", strip=True)
+
         date_keys = [
             target.strftime("%Y-%m-%d"), target.strftime("%m/%d"), f"{target.month}/{target.day}",
             f"{target.month}월 {target.day}일", f"{target.month}월{target.day}일"
         ]
         has_date = any(k in text for k in date_keys)
         has_fish = fish_filter == "전체" or fish_filter in text
+        has_method = method_filter == "전체" or method_filter in text
         has_booking = any(w in text for w in ["예약", "잔여", "남은자리", "바로예약", "예약가능"])
         has_full = any(w in text for w in ["마감", "만석", "예약완료"])
 
-        if has_date and has_fish and has_booking:
+        if has_date and has_fish and has_method and has_booking:
             status, group, sort = "예약 키워드 있음", "확인 필요", 30
         elif has_full:
             status, group, sort = "마감 키워드 있음", "마감", 60
@@ -190,9 +226,9 @@ def check_manual_site(site: dict, target: date, fish_filter: str):
 
     return {
         "선사명": site["name"], "권역": site.get("region", ""), "출항지": site.get("port", ""),
-        "어종": "" if fish_filter == "전체" else fish_filter, "가격": "", "출항시간": "",
-        "예약인원": "", "취소인원": "", "상태": status, "예약링크": site["url"], "API": "",
-        "_group": group, "_sort": sort
+        "어종": "" if fish_filter == "전체" else fish_filter, "낚시방식": "" if method_filter == "전체" else method_filter,
+        "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
+        "상태": status, "예약링크": site["url"], "API": "", "_group": group, "_sort": sort
     }
 
 
@@ -207,35 +243,33 @@ def filter_df(df, available_only, favorites_only, favorites, keyword):
     return out
 
 
-def render_cards(df, page_size, key_prefix):
+def render_grouped_cards(df):
     if df.empty:
         st.info("표시할 결과가 없습니다.")
         return
 
-    page_count = max((len(df) - 1) // page_size + 1, 1)
-    page = st.number_input("페이지", 1, page_count, 1, key=f"page_{key_prefix}") if page_count > 1 else 1
-    part = df.iloc[(page - 1) * page_size: page * page_size]
-
-    for _, row in part.iterrows():
-        icon = "🟢" if row["_group"] == "예약 가능" else "🔴" if row["_group"] == "마감" else "🟡"
-        st.markdown(f"""
-        <div class="result-card">
-          <div class="card-top">
-            <div>
-              <div class="title">{icon} {row['선사명']}</div>
-              <div class="muted">{row['권역']} · {row['출항지']} · {row['어종'] or '어종 확인 필요'}</div>
-            </div>
-            <div class="status">{row['상태']}</div>
-          </div>
-          <div class="meta">
-            <span>가격: {row['가격'] or '-'}</span>
-            <span>시간: {row['출항시간'] or '-'}</span>
-            <span>예약인원: {row['예약인원'] or '-'}</span>
-            <span>취소: {row['취소인원'] or '-'}</span>
-          </div>
-          <a href="{row['예약링크']}" target="_blank">예약 페이지 열기</a>
-        </div>
-        """, unsafe_allow_html=True)
+    for ship_name, group_df in df.groupby("선사명", sort=False):
+        with st.expander(f"🚤 {ship_name} ({len(group_df)}개 일정)", expanded=True):
+            for _, row in group_df.iterrows():
+                icon = "🟢" if row["_group"] == "예약 가능" else "🔴" if row["_group"] == "마감" else "🟡"
+                st.markdown(f"""
+                <div class="result-card">
+                  <div class="card-top">
+                    <div>
+                      <div class="title">{icon} {row['어종'] or '어종 확인 필요'} {('· ' + row['낚시방식']) if row['낚시방식'] else ''}</div>
+                      <div class="muted">{row['권역']} · {row['출항지']}</div>
+                    </div>
+                    <div class="status">{row['상태']}</div>
+                  </div>
+                  <div class="meta">
+                    <span>가격: {row['가격'] or '-'}</span>
+                    <span>시간: {row['출항시간'] or '-'}</span>
+                    <span>예약인원: {row['예약인원'] or '-'}</span>
+                    <span>취소: {row['취소인원'] or '-'}</span>
+                  </div>
+                  <a href="{row['예약링크']}" target="_blank">예약 페이지 열기</a>
+                </div>
+                """, unsafe_allow_html=True)
 
 
 st.set_page_config(page_title="낚시 빈자리 통합검색", page_icon="🎣", layout="wide")
@@ -255,8 +289,8 @@ st.markdown("""
 sunsang_sites = load_json(SUNSANG_FILE, [])
 manual_sites = load_json(MANUAL_FILE, [])
 
-st.markdown('<div class="main-title">🎣 낚시 빈자리 통합검색 LIVE v1</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">선상24 예약현황 JSON과 예약 상세페이지를 실제로 조회합니다.</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">🎣 낚시 빈자리 통합검색 LIVE v2</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">어종과 낚시방식을 분리했습니다. 예: 참돔 = 어종, 타이라바 = 낚시방식.</div>', unsafe_allow_html=True)
 
 left, right = st.columns([1, 2.3], gap="large")
 
@@ -265,6 +299,7 @@ with left:
     target = st.date_input("출조일", value=date.today())
     people = st.number_input("인원", min_value=1, max_value=30, value=2)
     fish = st.selectbox("어종", FISH_OPTIONS)
+    method = st.selectbox("낚시방식", METHOD_OPTIONS)
     region = st.selectbox("권역", REGIONS)
 
     ports = ["전체"] + sorted({s.get("port", "") for s in sunsang_sites + manual_sites if s.get("port")})
@@ -276,7 +311,7 @@ with left:
     favorites = st.multiselect("즐겨찾기 선사", [s["name"] for s in sunsang_sites + manual_sites])
     favorites_only = st.checkbox("즐겨찾기만 보기", value=False)
     include_manual = st.checkbox("일반 사이트 포함", value=True)
-    page_size = st.selectbox("몇 개씩 보기", [10, 20, 50, 100], index=1)
+    group_by_ship = st.checkbox("선사별로 묶어보기", value=True)
 
     st.divider()
     with st.expander("선상24 사이트 추가"):
@@ -288,17 +323,6 @@ with left:
             if new_name and new_url:
                 sunsang_sites.append({"name": new_name, "region": new_region, "port": new_port, "base_url": new_url.rstrip("/")})
                 save_json(SUNSANG_FILE, sunsang_sites)
-                st.success("저장했습니다. 새로고침 후 반영됩니다.")
-
-    with st.expander("일반 사이트 추가"):
-        m_name = st.text_input("사이트명", key="m_name")
-        m_url = st.text_input("URL", key="m_url")
-        m_region = st.selectbox("권역", REGIONS[1:], key="m_region")
-        m_port = st.text_input("출항지", key="m_port")
-        if st.button("일반 사이트 저장"):
-            if m_name and m_url:
-                manual_sites.append({"name": m_name, "region": m_region, "port": m_port, "url": m_url})
-                save_json(MANUAL_FILE, manual_sites)
                 st.success("저장했습니다. 새로고침 후 반영됩니다.")
 
     search = st.button("🔎 실시간 조회", type="primary", use_container_width=True)
@@ -313,11 +337,10 @@ with right:
     if not search:
         st.info("왼쪽에서 조건을 고른 뒤 실시간 조회를 누르세요.")
         st.markdown("""
-        **LIVE v1 기능**
-        - 선상24 예약현황 JSON 실제 조회
-        - 예약 상세페이지에서 어종/가격/출항시간 추출
-        - 예약자 목록에서 예약인원 계산
-        - 권역/출항지/어종/선사명 필터
+        **LIVE v2 변경점**
+        - 타이라바를 어종이 아닌 낚시방식으로 분리
+        - 어종 필터와 낚시방식 필터 분리
+        - 선사별 묶어보기 추가
         """)
     else:
         selected_sunsang = [
@@ -336,17 +359,17 @@ with right:
         total = len(selected_sunsang) + len(selected_manual)
         progress = st.progress(0)
         status_box = st.empty()
-
         idx = 0
+
         for site in selected_sunsang:
             idx += 1
             status_box.write(f"선상24 조회 중: {site['name']}")
             try:
-                rows.extend(parse_sunsang_site(site, target, int(people), fish))
+                rows.extend(parse_sunsang_site(site, target, int(people), fish, method))
             except Exception:
                 rows.append({
                     "선사명": site["name"], "권역": site.get("region", ""), "출항지": site.get("port", ""),
-                    "어종": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
+                    "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
                     "상태": "조회 오류/직접 확인 필요", "예약링크": site["base_url"],
                     "API": build_api_url(site["base_url"], target), "_group": "확인 필요", "_sort": 95
                 })
@@ -355,7 +378,7 @@ with right:
         for site in selected_manual:
             idx += 1
             status_box.write(f"일반 사이트 확인 중: {site['name']}")
-            rows.append(check_manual_site(site, target, fish))
+            rows.append(check_manual_site(site, target, fish, method))
             progress.progress(idx / max(total, 1))
 
         status_box.empty()
@@ -374,13 +397,17 @@ with right:
             st.success(f"조회 완료: 예약 가능 {available_count}건 · 확인 필요 {check_count}건 · 마감 {full_count}건")
 
             with st.expander(f"🟢 예약 가능 ({available_count}건)", expanded=True):
-                render_cards(df[df["_group"] == "예약 가능"], page_size, "available")
+                target_df = df[df["_group"] == "예약 가능"]
+                if group_by_ship:
+                    render_grouped_cards(target_df)
+                else:
+                    render_grouped_cards(target_df)
 
             with st.expander(f"🟡 확인 필요 ({check_count}건)", expanded=False):
-                render_cards(df[df["_group"] == "확인 필요"], page_size, "check")
+                render_grouped_cards(df[df["_group"] == "확인 필요"])
 
             with st.expander(f"🔴 마감 ({full_count}건)", expanded=False):
-                render_cards(df[df["_group"] == "마감"], page_size, "full")
+                render_grouped_cards(df[df["_group"] == "마감"])
 
             st.subheader("표 형태")
             st.dataframe(
