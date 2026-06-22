@@ -1,35 +1,30 @@
 [
   {
     "name": "군산 참바다호",
-    "platform": "sunsang24",
     "region": "전북",
     "port": "군산",
     "base_url": "https://chambada.sunsang24.com"
   },
   {
     "name": "군산 후크스타호",
-    "platform": "sunsang24",
     "region": "전북",
     "port": "군산",
     "base_url": "https://hookstar.sunsang24.com"
   },
   {
     "name": "군산 아리울호",
-    "platform": "sunsang24",
     "region": "전북",
     "port": "군산",
     "base_url": "https://ariul.sunsang24.com"
   },
   {
     "name": "군산 자이언트호",
-    "platform": "sunsang24",
     "region": "전북",
     "port": "군산",
     "base_url": "https://giant.sunsang24.com"
   },
   {
     "name": "인천 루키나호",
-    "platform": "sunsang24",
     "region": "인천·경기",
     "port": "인천",
     "base_url": "https://lukina.sunsang24.com"
