@@ -1,3 +1,4 @@
+
 import json
 import re
 from datetime import date, datetime, timedelta
@@ -298,26 +299,6 @@ left, right = st.columns([1, 3.2], gap="large")
 with left:
     st.subheader("검색 조건")
  
-    with st.expander(f"📋 등록된 사이트 목록 보기 (총 {len(sunsang_sites) + len(manual_sites)}개)"):
-        rows_list = []
-        for s in sunsang_sites:
-            rows_list.append({
-                "구분": "선상24", "선사명": s.get("name", ""), "주어종": s.get("main_species", ""),
-                "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""),
-                "주소": s.get("base_url", ""),
-            })
-        for s in manual_sites:
-            rows_list.append({
-                "구분": "일반", "선사명": s.get("name", ""), "주어종": s.get("main_species", ""),
-                "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""),
-                "주소": s.get("url", ""),
-            })
-        if rows_list:
-            st.caption("선상24 = API로 실시간 예약 현황 자동 조회 · 일반 = 홈페이지 텍스트로 대략 판단")
-            st.dataframe(pd.DataFrame(rows_list), use_container_width=True, hide_index=True)
-        else:
-            st.caption("등록된 사이트가 없습니다.")
- 
     target = st.date_input("출조일", value=date.today())
     people = st.number_input("인원", min_value=1, max_value=30, value=2)
     fish = st.selectbox("어종", FISH_OPTIONS)
@@ -390,6 +371,31 @@ with right:
     c2.metric("일반 사이트", f"{len(manual_sites)}개")
     c3.metric("출조일", target.strftime("%m/%d"))
     c4.metric("인원", f"{people}명")
+ 
+    all_sites_rows = []
+    for s in sunsang_sites:
+        all_sites_rows.append({
+            "구분": "선상24", "선사명": s.get("name", ""), "주어종": s.get("main_species", ""),
+            "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""),
+            "주소": s.get("base_url", ""),
+        })
+    for s in manual_sites:
+        all_sites_rows.append({
+            "구분": "일반", "선사명": s.get("name", ""), "주어종": s.get("main_species", ""),
+            "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""),
+            "주소": s.get("url", ""),
+        })
+    with st.expander(f"📋 등록된 사이트 목록 보기 (총 {len(all_sites_rows)}개)"):
+        if all_sites_rows:
+            st.caption("선상24 = API로 실시간 예약 현황 자동 조회 · 일반 = 홈페이지 텍스트로 대략 판단")
+            st.dataframe(
+                pd.DataFrame(all_sites_rows),
+                use_container_width=True, hide_index=True,
+                height=38 * (len(all_sites_rows) + 1) + 3,
+            )
+        else:
+            st.caption("등록된 사이트가 없습니다.")
+ 
  
     if not search:
         st.info("왼쪽에서 조건을 고른 뒤 실시간 조회를 누르세요.")
