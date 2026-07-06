@@ -2,30 +2,35 @@
   {
     "name": "아라호",
     "region": "인천·경기",
-    "port": "영흥도",
+    "city": "영흥도",
+    "port": "",
     "url": "http://www.araho.co.kr/"
   },
   {
     "name": "야무진피싱",
     "region": "충남",
+    "city": "보령",
     "port": "오천항",
     "url": "http://www.yamujinfishing.com/"
   },
   {
     "name": "나폴리호",
     "region": "충남",
+    "city": "보령",
     "port": "오천항",
     "url": "https://www.napoliho.net/"
   },
   {
     "name": "뉴하와이호",
     "region": "충남",
+    "city": "태안",
     "port": "당암포",
     "url": "http://newhawaii.co.kr/"
   },
   {
     "name": "닉스2호",
     "region": "전북",
+    "city": "군산",
     "port": "비응항",
     "url": "http://xn--bj1bs41avxo.com/"
   }
