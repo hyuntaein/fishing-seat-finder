@@ -296,6 +296,28 @@ left, right = st.columns([1, 2.3], gap="large")
  
 with left:
     st.subheader("검색 조건")
+ 
+    with st.expander(f"📋 등록된 사이트 목록 보기 (총 {len(sunsang_sites) + len(manual_sites)}개)"):
+        st.markdown(f"**선상24 사이트 ({len(sunsang_sites)}개)** — API로 실시간 예약 현황 자동 조회")
+        if sunsang_sites:
+            st.dataframe(
+                pd.DataFrame(sunsang_sites)[["name", "region", "port", "base_url"]]
+                  .rename(columns={"name": "선사명", "region": "권역", "port": "출항지", "base_url": "주소"}),
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.caption("등록된 선상24 사이트가 없습니다.")
+ 
+        st.markdown(f"**일반 사이트 ({len(manual_sites)}개)** — 홈페이지 텍스트로 대략 판단")
+        if manual_sites:
+            st.dataframe(
+                pd.DataFrame(manual_sites)[["name", "region", "port", "url"]]
+                  .rename(columns={"name": "선사명", "region": "권역", "port": "출항지", "url": "주소"}),
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.caption("등록된 일반 사이트가 없습니다.")
+ 
     target = st.date_input("출조일", value=date.today())
     people = st.number_input("인원", min_value=1, max_value=30, value=2)
     fish = st.selectbox("어종", FISH_OPTIONS)
