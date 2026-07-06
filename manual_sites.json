@@ -1,10 +1,10 @@
 [
   {
     "name": "아라호",
-    "main_species": "광어,참돔",
+    "main_species": "광어",
     "region": "인천·경기",
     "city": "영흥도",
-    "port": "진두선착장",
+    "port": "",
     "url": "http://www.araho.co.kr/"
   },
   {
@@ -38,5 +38,21 @@
     "city": "군산",
     "port": "비응항",
     "url": "http://xn--bj1bs41avxo.com/"
+  },
+  {
+    "name": "씨뱅이호",
+    "main_species": "광어",
+    "region": "충남",
+    "city": "보령",
+    "port": "오천항",
+    "url": "https://spdman7.thefishing.kr/"
+  },
+  {
+    "name": "아쿠아마린호",
+    "main_species": "갑오징어",
+    "region": "충남",
+    "city": "홍원",
+    "port": "홍원항",
+    "url": "http://aquamarineho.com/"
   }
 ]
