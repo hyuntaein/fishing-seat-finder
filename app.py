@@ -136,7 +136,7 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, 
 
     if not target_rows:
         return [{
-            "선사명": site["name"], "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+            "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
             "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
             "상태": "일정 없음/확인 필요", "예약링크": site["base_url"], "API": api_url,
             "_group": "확인 필요", "_sort": 80
@@ -179,7 +179,7 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, 
             status, group, sort = "예약 가능 추정", "예약 가능", 10
 
         results.append({
-            "선사명": site["name"], "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+            "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
             "어종": detail.get("species", ""), "낚시방식": detail.get("method", ""),
             "가격": detail.get("price", ""), "출항시간": detail.get("time", ""),
             "예약인원": f"{reserved}명", "취소인원": f"{canceled}명" if canceled else "",
@@ -189,7 +189,7 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, 
 
     if not results:
         return [{
-            "선사명": site["name"], "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+            "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
             "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
             "상태": "선택 조건 일정 없음", "예약링크": site["base_url"], "API": api_url,
             "_group": "확인 필요", "_sort": 70
@@ -225,7 +225,7 @@ def check_manual_site(site: dict, target: date, fish_filter: str, method_filter:
         status, group, sort = "접속 오류/직접 확인 필요", "확인 필요", 90
 
     return {
-        "선사명": site["name"], "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+        "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
         "어종": "" if fish_filter == "전체" else fish_filter, "낚시방식": "" if method_filter == "전체" else method_filter,
         "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
         "상태": status, "예약링크": site["url"], "API": "", "_group": group, "_sort": sort
@@ -256,7 +256,8 @@ def render_grouped_cards(df):
                 <div class="result-card">
                   <div class="card-top">
                     <div>
-                      <div class="title">{icon} {row['어종'] or '어종 확인 필요'} {('· ' + row['낚시방식']) if row['낚시방식'] else ''}</div>
+                      <div class="title">{icon} {row['선사명']} {('(' + row['주어종'] + ')') if row.get('주어종') else ''}</div>
+                      <div class="sub">{row['어종'] or '어종 확인 필요'} {('· ' + row['낚시방식']) if row['낚시방식'] else ''}</div>
                       <div class="muted">{row['권역']} · {row.get('도시','')} · {row['출항지']}</div>
                     </div>
                     <div class="status">{row['상태']}</div>
@@ -280,6 +281,7 @@ st.markdown("""
 .result-card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
 .card-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
 .title{font-size:20px;font-weight:800}
+.sub{font-size:14px;color:#333;margin-top:2px}
 .muted{font-size:13px;color:#777;margin-top:3px}
 .status{font-weight:800;color:#0ea5e9;text-align:right}
 .meta{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;color:#333}
@@ -301,12 +303,12 @@ with left:
         st.markdown(f"**선상24 사이트 ({len(sunsang_sites)}개)** — API로 실시간 예약 현황 자동 조회")
         if sunsang_sites:
             df_s = pd.DataFrame(sunsang_sites)
-            for col in ["region", "city", "port", "base_url"]:
+            for col in ["region", "city", "port", "base_url", "main_species"]:
                 if col not in df_s.columns:
                     df_s[col] = ""
             st.dataframe(
-                df_s[["name", "region", "city", "port", "base_url"]]
-                  .rename(columns={"name": "선사명", "region": "권역", "city": "도시", "port": "출항지", "base_url": "주소"}),
+                df_s[["name", "main_species", "region", "city", "port", "base_url"]]
+                  .rename(columns={"name": "선사명", "main_species": "주어종", "region": "권역", "city": "도시", "port": "출항지", "base_url": "주소"}),
                 use_container_width=True, hide_index=True,
             )
         else:
@@ -315,12 +317,12 @@ with left:
         st.markdown(f"**일반 사이트 ({len(manual_sites)}개)** — 홈페이지 텍스트로 대략 판단")
         if manual_sites:
             df_m = pd.DataFrame(manual_sites)
-            for col in ["region", "city", "port", "url"]:
+            for col in ["region", "city", "port", "url", "main_species"]:
                 if col not in df_m.columns:
                     df_m[col] = ""
             st.dataframe(
-                df_m[["name", "region", "city", "port", "url"]]
-                  .rename(columns={"name": "선사명", "region": "권역", "city": "도시", "port": "출항지", "url": "주소"}),
+                df_m[["name", "main_species", "region", "city", "port", "url"]]
+                  .rename(columns={"name": "선사명", "main_species": "주어종", "region": "권역", "city": "도시", "port": "출항지", "url": "주소"}),
                 use_container_width=True, hide_index=True,
             )
         else:
@@ -348,13 +350,14 @@ with left:
     st.divider()
     with st.expander("선상24 사이트 추가"):
         new_name = st.text_input("선사명", key="new_name")
+        new_species = st.text_input("주어종 (예: 참돔, 광어)", key="new_species")
         new_url = st.text_input("선상24 주소", placeholder="https://example.sunsang24.com", key="new_url")
         new_region = st.selectbox("권역", REGIONS[1:], key="new_region")
         new_city = st.text_input("도시 (예: 군산)", key="new_city")
         new_port = st.text_input("출항지 (예: 비응항)", key="new_port")
         if st.button("선상24 사이트 저장"):
             if new_name and new_url:
-                sunsang_sites.append({"name": new_name, "region": new_region, "city": new_city, "port": new_port, "base_url": new_url.rstrip("/")})
+                sunsang_sites.append({"name": new_name, "main_species": new_species, "region": new_region, "city": new_city, "port": new_port, "base_url": new_url.rstrip("/")})
                 save_json(SUNSANG_FILE, sunsang_sites)
                 st.success("저장했습니다. 새로고침(F5) 하면 목록에 반영됩니다.")
             else:
@@ -362,13 +365,14 @@ with left:
 
     with st.expander("일반 사이트 추가"):
         m_name = st.text_input("선사명", key="m_new_name")
+        m_species = st.text_input("주어종 (예: 광어)", key="m_new_species")
         m_url = st.text_input("사이트 주소", placeholder="http://example.co.kr/", key="m_new_url")
         m_region = st.selectbox("권역", REGIONS[1:], key="m_new_region")
         m_city = st.text_input("도시 (예: 보령, 모르면 비워두세요)", key="m_new_city")
         m_port = st.text_input("출항지 (예: 오천항, 모르면 비워두세요)", key="m_new_port")
         if st.button("일반 사이트 저장"):
             if m_name and m_url:
-                manual_sites.append({"name": m_name, "region": m_region, "city": m_city, "port": m_port, "url": m_url.strip()})
+                manual_sites.append({"name": m_name, "main_species": m_species, "region": m_region, "city": m_city, "port": m_port, "url": m_url.strip()})
                 save_json(MANUAL_FILE, manual_sites)
                 st.success("저장했습니다. 새로고침(F5) 하면 목록에 반영됩니다.")
             else:
@@ -433,7 +437,7 @@ with right:
                 rows.extend(parse_sunsang_site(site, target, int(people), fish, method))
             except Exception:
                 rows.append({
-                    "선사명": site["name"], "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+                    "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
                     "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
                     "상태": "조회 오류/직접 확인 필요", "예약링크": site["base_url"],
                     "API": build_api_url(site["base_url"], target), "_group": "확인 필요", "_sort": 95

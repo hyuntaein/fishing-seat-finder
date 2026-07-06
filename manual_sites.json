@@ -1,6 +1,7 @@
 [
   {
     "name": "아라호",
+    "main_species": "광어",
     "region": "인천·경기",
     "city": "영흥도",
     "port": "",
@@ -8,6 +9,7 @@
   },
   {
     "name": "야무진피싱",
+    "main_species": "광어",
     "region": "충남",
     "city": "보령",
     "port": "오천항",
@@ -15,6 +17,7 @@
   },
   {
     "name": "나폴리호",
+    "main_species": "광어",
     "region": "충남",
     "city": "보령",
     "port": "오천항",
@@ -22,6 +25,7 @@
   },
   {
     "name": "뉴하와이호",
+    "main_species": "광어",
     "region": "충남",
     "city": "태안",
     "port": "당암포",
@@ -29,6 +33,7 @@
   },
   {
     "name": "닉스2호",
+    "main_species": "참돔",
     "region": "전북",
     "city": "군산",
     "port": "비응항",
