@@ -133,17 +133,25 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, 
     rows = payload.get("data", [])
     target_rows = [r for r in rows if r.get("sdate") == target_iso]
 
+    base = site["base_url"].rstrip("/")
+    main_species = site.get("main_species", "")
+
     if not target_rows:
         return [{
-            "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+            "선사명": site["name"], "주어종": main_species, "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
             "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
-            "상태": "일정 없음/확인 필요", "예약링크": site["base_url"], "API": api_url,
+            "상태": "일정 없음/직접 확인", "예약링크": base, "API": api_url,
             "_group": "확인 필요", "_sort": 80
         }]
 
+    # 어종/방식 필터는 사이트에 등록해둔 '주어종' 기준으로만 적용 (스케줄 상세페이지는 로그인이 필요해 신뢰할 수 없음)
+    if fish_filter != "전체" and main_species and fish_filter not in main_species:
+        return []
+    if method_filter != "전체" and main_species and method_filter not in main_species:
+        return []
+
     results = []
     for r in target_rows:
-        schedule_no = r.get("ship_schedule_no")
         reserved = (
             count_people(r.get("reservation_ready")) +
             count_people(r.get("reservation_new_ready")) +
@@ -155,46 +163,26 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, 
             count_people(r.get("reservation_new_cancel")) +
             count_people(r.get("reservation_new_cancel_ready"))
         )
-
-        try:
-            detail = fetch_detail_page(site["base_url"], schedule_no)
-        except Exception:
-            detail = {
-                "detail_url": build_detail_url(site["base_url"], schedule_no),
-                "species": "", "method": "", "price": "", "time": "", "text": ""
-            }
-
-        searchable = f"{detail.get('species','')} {detail.get('method','')} {detail.get('text','')}"
-        parse_failed = not detail.get("species") and not detail.get("method")
-        if not parse_failed:
-            if fish_filter != "전체" and fish_filter not in searchable:
-                continue
-            if method_filter != "전체" and method_filter not in searchable:
-                continue
+        ship_name = r.get("ship_name") or r.get("boat_name") or site["name"]
+        time_text = ""
+        if r.get("go_time") or r.get("come_time"):
+            time_text = f"{r.get('go_time','')}~{r.get('come_time','')}".strip("~")
 
         if r.get("reservation_end") is True:
-            status, group, sort = "예약 종료", "마감", 60
+            status, group, sort = "예약 종료(선상24 기준)", "마감", 60
         elif r.get("reservation_standby"):
-            status, group, sort = "대기 가능", "확인 필요", 40
+            status, group, sort = "대기 가능(직접 확인)", "확인 필요", 40
         else:
-            status, group, sort = "예약 가능 추정", "예약 가능", 10
+            status, group, sort = "예약 가능 추정(남은자리는 클릭해서 확인)", "예약 가능", 10
 
         results.append({
-            "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
-            "어종": detail.get("species", "") or ("(확인필요)" if parse_failed else ""), "낚시방식": detail.get("method", "") or ("(확인필요)" if parse_failed else ""),
-            "가격": detail.get("price", ""), "출항시간": detail.get("time", ""),
+            "선사명": ship_name, "주어종": main_species, "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+            "어종": "", "낚시방식": "",
+            "가격": "", "출항시간": time_text,
             "예약인원": f"{reserved}명", "취소인원": f"{canceled}명" if canceled else "",
-            "상태": status, "예약링크": detail.get("detail_url") or build_detail_url(site["base_url"], schedule_no),
+            "상태": status, "예약링크": base,
             "API": api_url, "_group": group, "_sort": sort
         })
-
-    if not results:
-        return [{
-            "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
-            "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
-            "상태": "선택 조건 일정 없음", "예약링크": site["base_url"], "API": api_url,
-            "_group": "확인 필요", "_sort": 70
-        }]
 
     return results
 
