@@ -347,6 +347,8 @@ with left:
     port = st.selectbox("출항지", ports)
     keyword = st.text_input("선사명 검색", placeholder="예: 참바다, 루키나")
 
+    search = st.button("🔎 실시간 조회", type="primary", use_container_width=True)
+
     st.divider()
     available_only = st.checkbox("예약 가능만 보기", value=True)
     favorites = st.multiselect("즐겨찾기 선사", [s["name"] for s in sunsang_sites + manual_sites])
@@ -411,8 +413,6 @@ with left:
                     st.success(f"'{del_name}' 삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
                 else:
                     st.warning(f"'{del_name}' 임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-
-    search = st.button("🔎 실시간 조회", type="primary", use_container_width=True)
 
 with right:
     c1, c2, c3, c4 = st.columns(4)
