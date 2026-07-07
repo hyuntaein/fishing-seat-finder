@@ -49,7 +49,7 @@
   },
   {
     "name": "아쿠아마린호",
-    "main_species": "갑오징어",
+    "main_species": "갑오징어,문어,광어",
     "region": "충남",
     "city": "홍원",
     "port": "홍원항",
