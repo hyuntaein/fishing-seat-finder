@@ -54,5 +54,13 @@
     "city": "홍원",
     "port": "홍원항",
     "url": "http://aquamarineho.com/"
+  },
+  {
+    "name": "마린스타호",
+    "main_species": "광어",
+    "region": "인천·경기",
+    "city": "인천",
+    "port": "만석부두",
+    "url": "https://marinestarho.com/"
   }
 ]
