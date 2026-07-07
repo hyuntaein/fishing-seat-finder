@@ -120,106 +120,114 @@ def split_species_and_method(raw: str):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def fetch_reservation_json(base_url: str, target_date_iso: str):
-    target_date = datetime.strptime(target_date_iso, "%Y-%m-%d").date()
-    api_url = build_api_url(base_url, target_date)
-    res = requests.get(api_url, headers=HEADERS_JSON, timeout=15)
-    res.raise_for_status()
-    return res.json(), api_url
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def fetch_detail_page(base_url: str, schedule_no):
-    url = build_detail_url(base_url, schedule_no)
+def fetch_schedule_fleet_page(base_url: str):
+    """로그인 없이 볼 수 있는 '출항일정/예약하기' 페이지. 실제 '남은자리' 숫자가 그대로 나온다."""
+    url = f"{base_url.rstrip('/')}/ship/schedule_fleet"
     res = requests.get(url, headers=HEADERS_HTML, timeout=15)
     res.raise_for_status()
+    res.encoding = res.apparent_encoding or "utf-8"
     soup = BeautifulSoup(res.text, "html.parser")
     text = soup.get_text("\n", strip=True)
-
-    price = ""
-    m = re.search(r"(\d{1,3}(?:,\d{3})+원)", text)
-    if m:
-        price = m.group(1)
-
-    time_text = ""
-    m = re.search(r"(\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2})", text)
-    if m:
-        time_text = re.sub(r"\s+", "", m.group(1))
-
-    raw_fish = ""
-    m = re.search(r"어종\s*[:：]\s*([^\n]+)", text)
-    if m:
-        raw_fish = m.group(1).strip()
-
-    species, method = split_species_and_method(raw_fish)
-
-    return {
-        "detail_url": url,
-        "raw_fish": raw_fish,
-        "species": species,
-        "method": method,
-        "price": price,
-        "time": time_text,
-        "text": text[:1200],
-    }
+    text = re.sub(r"\n{2,}", "\n", text)
+    return text, url
 
 
 def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, method_filter: str):
-    target_iso = target.strftime("%Y-%m-%d")
-    payload, api_url = fetch_reservation_json(site["base_url"], target_iso)
-    rows = payload.get("data", [])
-    target_rows = [r for r in rows if r.get("sdate") == target_iso]
-
     base = site["base_url"].rstrip("/")
     main_species = site.get("main_species", "")
 
-    if not target_rows:
+    try:
+        page_text, page_url = fetch_schedule_fleet_page(site["base_url"])
+    except Exception as e:
         return [{
             "선사명": site["name"], "주어종": main_species, "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
-            "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
-            "상태": "일정 없음/직접 확인", "예약링크": base, "API": api_url,
+            "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "남은자리": "", "취소인원": "",
+            "상태": f"페이지 조회 실패({e})", "예약링크": base, "API": base + "/ship/schedule_fleet",
+            "_group": "확인 필요", "_sort": 90
+        }]
+
+    # 날짜 블록 찾기: "7월7일(화)" 형태. 다음 날짜가 나오기 전까지를 그 날의 블록으로 본다.
+    day_pat = re.compile(rf"{target.month}월\s*{target.day}일\([^)]+\)")
+    m = day_pat.search(page_text)
+    if not m:
+        return [{
+            "선사명": site["name"], "주어종": main_species, "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+            "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "남은자리": "", "취소인원": "",
+            "상태": "해당 날짜 일정 없음/직접 확인", "예약링크": page_url, "API": page_url,
             "_group": "확인 필요", "_sort": 80
         }]
 
-    # 어종/방식 필터는 사이트에 등록해둔 '주어종' 기준으로만 적용 (스케줄 상세페이지는 로그인이 필요해 신뢰할 수 없음)
-    if fish_filter != "전체" and main_species and fish_filter not in main_species:
-        return []
-    if method_filter != "전체" and main_species and method_filter not in main_species:
-        return []
+    any_day_pat = re.compile(r"\d+월\s*\d+일\([^)]+\)")
+    next_m = any_day_pat.search(page_text, m.end())
+    day_block = page_text[m.end(): next_m.start() if next_m else len(page_text)]
 
+    ship_pat = re.compile(r"([가-힣0-9]+호)\s*바로예약(.*?)(?=[가-힣0-9]+호\s*바로예약|\Z)", re.DOTALL)
+    matches = list(ship_pat.finditer(day_block))
+
+    if not matches:
+        return [{
+            "선사명": site["name"], "주어종": main_species, "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
+            "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "남은자리": "", "취소인원": "",
+            "상태": "일정 파싱 실패/직접 확인", "예약링크": page_url, "API": page_url,
+            "_group": "확인 필요", "_sort": 80
+        }]
+
+    # 어종/방식 필터는 사이트에 등록해둔 '주어종' 기준으로도 확인하되, 페이지에서 직접 읽은 값을 우선한다.
     results = []
-    for r in target_rows:
-        reserved = (
-            count_people(r.get("reservation_ready")) +
-            count_people(r.get("reservation_new_ready")) +
-            count_people(r.get("reservation_fishing_ready"))
-        )
-        canceled = (
-            count_people(r.get("reservation_cancel")) +
-            count_people(r.get("reservation_cancel_ready")) +
-            count_people(r.get("reservation_new_cancel")) +
-            count_people(r.get("reservation_new_cancel_ready"))
-        )
-        ship_name = r.get("ship_name") or r.get("boat_name") or site["name"]
-        time_text = ""
-        if r.get("go_time") or r.get("come_time"):
-            time_text = f"{r.get('go_time','')}~{r.get('come_time','')}".strip("~")
+    for mm in matches:
+        ship_name = mm.group(1)
+        detail = mm.group(2)
 
-        if r.get("reservation_end") is True:
-            status, group, sort = "예약 종료(선상24 기준)", "마감", 60
-        elif r.get("reservation_standby"):
-            status, group, sort = "대기 가능(직접 확인)", "확인 필요", 40
+        raw_fish = ""
+        fm = re.search(r"어종\s*[:：]\s*([^\n]+?)(?=운항시간|예약완료|\Z)", detail)
+        if fm:
+            raw_fish = fm.group(1).strip()
+        species, method = split_species_and_method(raw_fish)
+        species = species or main_species
+
+        time_text = ""
+        tm = re.search(r"운항시간\s*[:：]\s*([\d:]+)\s*~\s*([\d:]+)", detail)
+        if tm:
+            time_text = f"{tm.group(1)}~{tm.group(2)}"
+
+        remain_m = re.search(r"남은자리\s*(\d+)\s*명", detail)
+        if remain_m:
+            remain = int(remain_m.group(1))
+            if remain <= 0:
+                status, group, sort = "마감(남은자리 0)", "마감", 60
+            elif remain < people:
+                status, group, sort = f"남은자리 {remain}명 (요청인원 {people}명보다 적음)", "확인 필요", 45
+            else:
+                status, group, sort = f"예약 가능 (남은자리 {remain}명)", "예약 가능", 10
+            remain_text = f"{remain}명"
+        elif "마감" in detail or "예약마감" in detail:
+            status, group, sort = "마감", "마감", 60
+            remain_text = "0명"
+        elif "선택출항" in detail or "어종을 선택" in detail:
+            status, group, sort = "선택출항(어종 지정 필요, 직접 확인)", "확인 필요", 50
+            remain_text = ""
         else:
-            status, group, sort = "예약 가능 추정(남은자리는 클릭해서 확인)", "예약 가능", 10
+            status, group, sort = "직접 확인 필요", "확인 필요", 80
+            remain_text = ""
+
+        # 필터: 페이지에서 못 읽었을 때만 등록된 주어종으로 대체 판단, 읽었으면 그 값 기준
+        searchable = f"{species} {method}"
+        if fish_filter != "전체" and searchable.strip() and fish_filter not in searchable:
+            continue
+        if method_filter != "전체" and method and method_filter not in method:
+            continue
 
         results.append({
             "선사명": ship_name, "주어종": main_species, "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
-            "어종": "", "낚시방식": "",
+            "어종": species, "낚시방식": method,
             "가격": "", "출항시간": time_text,
-            "예약인원": f"{reserved}명", "취소인원": f"{canceled}명" if canceled else "",
-            "상태": status, "예약링크": base,
-            "API": api_url, "_group": group, "_sort": sort
+            "남은자리": remain_text, "취소인원": "",
+            "상태": status, "예약링크": page_url,
+            "API": page_url, "_group": group, "_sort": sort
         })
+
+    if not results:
+        return []
 
     return results
 
@@ -255,7 +263,7 @@ def check_manual_site(site: dict, target: date, fish_filter: str, method_filter:
     return {
         "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
         "어종": "" if fish_filter == "전체" else fish_filter, "낚시방식": "" if method_filter == "전체" else method_filter,
-        "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
+        "가격": "", "출항시간": "", "남은자리": "", "취소인원": "",
         "상태": status, "예약링크": site["url"], "API": "", "_group": group, "_sort": sort
     }
 
@@ -293,7 +301,7 @@ def render_grouped_cards(df):
                   <div class="meta">
                     <span>가격: {row['가격'] or '-'}</span>
                     <span>시간: {row['출항시간'] or '-'}</span>
-                    <span>예약인원: {row['예약인원'] or '-'}</span>
+                    <span>남은자리: {row['남은자리'] or '-'}</span>
                     <span>취소: {row['취소인원'] or '-'}</span>
                   </div>
                   <a href="{row['예약링크']}" target="_blank">예약 페이지 열기</a>
@@ -475,7 +483,7 @@ with right:
             except Exception:
                 rows.append({
                     "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
-                    "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "예약인원": "", "취소인원": "",
+                    "어종": "", "낚시방식": "", "가격": "", "출항시간": "", "남은자리": "", "취소인원": "",
                     "상태": "조회 오류/직접 확인 필요", "예약링크": site["base_url"],
                     "API": build_api_url(site["base_url"], target), "_group": "확인 필요", "_sort": 95
                 })
