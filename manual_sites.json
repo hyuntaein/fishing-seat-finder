@@ -78,5 +78,13 @@
     "city": "홍원",
     "port": "홍원항",
     "url": "http://xn--699a34m98bb62c.kr/"
+  },
+  {
+    "name": "영차호",
+    "main_species": "광어",
+    "region": "충남",
+    "city": "태안",
+    "port": "백사장항",
+    "url": "http://xn--hw4b19c9whvpk.kr/"
   }
 ]
