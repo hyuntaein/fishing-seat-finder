@@ -62,5 +62,13 @@
     "city": "인천",
     "port": "만석부두",
     "url": "https://marinestarho.com/"
+  },
+  {
+    "name": "드래곤호",
+    "main_species": "우럭,주꾸미",
+    "region": "충남",
+    "city": "홍원",
+    "port": "홍원항",
+    "url": "http://xn--699a34m98bb62c.kr/"
   }
 ]
