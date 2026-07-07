@@ -42,6 +42,43 @@ def save_json(path: Path, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+def commit_to_github(filename: str, data) -> tuple[bool, str]:
+    """secrets에 GITHUB_TOKEN / GITHUB_REPO가 설정돼 있으면 GitHub에 직접 커밋한다.
+    반환값: (성공여부, 메시지)"""
+    token = st.secrets.get("GITHUB_TOKEN", "")
+    repo = st.secrets.get("GITHUB_REPO", "")
+    if not token or not repo:
+        return False, "GitHub 자동 저장이 설정되지 않았습니다. (Secrets에 GITHUB_TOKEN/GITHUB_REPO 필요)"
+
+    api_url = f"https://api.github.com/repos/{repo}/contents/{filename}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+    }
+    try:
+        get_resp = requests.get(api_url, headers=headers, timeout=10)
+        sha = get_resp.json().get("sha") if get_resp.status_code == 200 else None
+
+        content_str = json.dumps(data, ensure_ascii=False, indent=2)
+        import base64
+        b64_content = base64.b64encode(content_str.encode("utf-8")).decode("utf-8")
+
+        payload = {
+            "message": f"앱에서 자동 업데이트: {filename}",
+            "content": b64_content,
+        }
+        if sha:
+            payload["sha"] = sha
+
+        put_resp = requests.put(api_url, headers=headers, json=payload, timeout=10)
+        if put_resp.status_code in (200, 201):
+            return True, "GitHub에 영구 저장 완료!"
+        else:
+            return False, f"GitHub 저장 실패 ({put_resp.status_code}): {put_resp.text[:200]}"
+    except Exception as e:
+        return False, f"GitHub 저장 중 오류: {e}"
+
+
 def count_people(value) -> int:
     if not value or value is False:
         return 0
@@ -321,7 +358,11 @@ with left:
             if new_name and new_url:
                 sunsang_sites.append({"name": new_name, "main_species": new_species, "region": new_region, "city": new_city, "port": new_port, "base_url": new_url.rstrip("/")})
                 save_json(SUNSANG_FILE, sunsang_sites)
-                st.success("저장했습니다. 새로고침(F5) 하면 목록에 반영됩니다.")
+                ok, msg = commit_to_github("sunsang24_sites.json", sunsang_sites)
+                if ok:
+                    st.success(f"저장했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                else:
+                    st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
             else:
                 st.warning("선사명과 주소를 입력하세요.")
 
@@ -336,7 +377,11 @@ with left:
             if m_name and m_url:
                 manual_sites.append({"name": m_name, "main_species": m_species, "region": m_region, "city": m_city, "port": m_port, "url": m_url.strip()})
                 save_json(MANUAL_FILE, manual_sites)
-                st.success("저장했습니다. 새로고침(F5) 하면 목록에 반영됩니다.")
+                ok, msg = commit_to_github("manual_sites.json", manual_sites)
+                if ok:
+                    st.success(f"저장했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                else:
+                    st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
             else:
                 st.warning("선사명과 주소를 입력하세요.")
 
@@ -349,10 +394,15 @@ with left:
                 sunsang_sites[:] = [s for s in sunsang_sites if s["name"] != del_name]
                 if len(sunsang_sites) != before_s:
                     save_json(SUNSANG_FILE, sunsang_sites)
+                    ok, msg = commit_to_github("sunsang24_sites.json", sunsang_sites)
                 else:
                     manual_sites[:] = [s for s in manual_sites if s["name"] != del_name]
                     save_json(MANUAL_FILE, manual_sites)
-                st.success(f"'{del_name}' 삭제했습니다. 새로고침(F5) 하면 반영됩니다.")
+                    ok, msg = commit_to_github("manual_sites.json", manual_sites)
+                if ok:
+                    st.success(f"'{del_name}' 삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                else:
+                    st.warning(f"'{del_name}' 임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
 
     search = st.button("🔎 실시간 조회", type="primary", use_container_width=True)
 
