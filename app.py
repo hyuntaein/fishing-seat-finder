@@ -512,6 +512,8 @@ with right:
 
             icon_map = {"예약 가능": "🟢", "확인 필요": "🟡", "마감": "🔴"}
             df_view = df.drop(columns=["_group", "_sort"], errors="ignore").copy()
+            empty_cols = [c for c in df_view.columns if df_view[c].astype(str).str.strip().replace({"nan": ""}).eq("").all()]
+            df_view = df_view.drop(columns=empty_cols)
             df_view.insert(0, "상태표시", df["_group"].map(icon_map).fillna("⚪"))
 
             st.markdown("**📊 한눈에 보기** — 아래 표에서 정렬·검색이 가능합니다.")
