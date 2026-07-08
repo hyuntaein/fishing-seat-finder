@@ -89,7 +89,7 @@
   },
   {
     "name": "가이아호",
-    "main_species": "참돔",
+    "main_species": "참돔,광어,문어,주꾸미,갑오징어,우럭",
     "region": "충남",
     "city": "보령",
     "port": "오천항",
