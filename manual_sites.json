@@ -86,5 +86,13 @@
     "city": "태안",
     "port": "백사장항",
     "url": "http://xn--hw4b19c9whvpk.kr/"
+  },
+  {
+    "name": "가이아호",
+    "main_species": "참돔",
+    "region": "충남",
+    "city": "보령",
+    "port": "오천항",
+    "url": "http://www.gaiaho.com/index.php?mid=map"
   }
 ]
