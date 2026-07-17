@@ -94,5 +94,13 @@
     "city": "보령",
     "port": "오천항",
     "url": "http://www.gaiaho.com/index.php?mid=map"
+  },
+  {
+    "name": "블레스호",
+    "main_species": "",
+    "region": "충남",
+    "city": "태안",
+    "port": "신진항",
+    "url": "https://www.blessho.com/"
   }
 ]
