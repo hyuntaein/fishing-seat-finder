@@ -50,6 +50,10 @@ def mulddae_strength_stars(idx: int) -> str:
     return "★" * n + "☆" * (5 - n)
 
 
+def mulddae_strength_percent(idx: int) -> int:
+    return int(MULDDAE_STRENGTH[idx] / 5 * 100)
+
+
 def estimate_mulddae(target_date: date):
     """음력 계산 라이브러리 없이, 삭(신월) 기준일로부터 경과일을 이용해 물때를 추정한다.
     (실제 물때표와 하루 정도 오차가 있을 수 있는 참고용 수치입니다)
@@ -427,7 +431,7 @@ with top2:
     city = st.selectbox("도시 (물때·날씨 기준)", _all_cities)
 
 mulddae, mulddae_idx = estimate_mulddae(target)
-stars = mulddae_strength_stars(mulddae_idx)
+stars = mulddae_strength_percent(mulddae_idx)
 weather_city = city if city != "전체" else "군산"
 coords = CITY_COORDS.get(weather_city)
 
@@ -450,8 +454,8 @@ st.markdown(f"""
     <div class="env-sub">참고용 추정치</div>
   </div>
   <div class="env-card strength">
-    <div class="env-label">🌀 물세기</div>
-    <div class="env-value" style="font-size:22px;letter-spacing:2px">{stars}</div>
+    <div class="env-label">🌀 조류세기</div>
+    <div class="env-value" style="font-size:26px">{stars}%</div>
     <div class="env-sub">사리 근처일수록 강함</div>
   </div>
   <div class="env-card weather">
