@@ -630,38 +630,58 @@ coords = CITY_COORDS.get(weather_city)
 
 weather_html = f"<div class='env-value'>예보 범위 밖</div><div class='env-sub'>보통 16일 이내만 제공</div>"
 sea_html = f"<div class='env-value'>-</div><div class='env-sub'>조회 실패/범위 밖</div>"
+weather_icon = "☀️"
 if coords:
     wdata = fetch_weather(*coords, target.strftime("%Y-%m-%d"))
     w = wdata.get("weather")
     sea = wdata.get("sea_temp")
     if w:
-        weather_html = f"<div class='env-value'>{w['최고기온']}° / {w['최저기온']}°</div><div class='env-sub'>강수 {w['강수확률']}% · 풍속 {w['최대풍속']}km/h</div>"
+        rain_prob = w["강수확률"] or 0
+        if rain_prob >= 50:
+            weather_icon = "🌧️"
+        elif rain_prob >= 30:
+            weather_icon = "⛅"
+        else:
+            weather_icon = "☀️"
+        weather_html = f"<div class='env-value'>{w['최고기온']}° / {w['최저기온']}°</div><div class='env-sub'>강수 {rain_prob}% · 풍속 {w['최대풍속']}km/h</div>"
     if sea is not None:
         sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
 
 tide_events = fetch_tide_events(weather_city, target.strftime("%Y-%m-%d"))
-tide_line = build_tide_line_text(tide_events)
-tide_line_html = (
-    f"<div class='env-sub' style='margin-top:6px;font-size:13px;letter-spacing:0.3px'>{tide_line}</div>"
-    if tide_line else
-    "<div class='env-sub' style='margin-top:6px'>만조·간조 정보 없음</div>"
-)
+
+if tide_events:
+    rows_html = ""
+    for e in tide_events:
+        icon = "▲" if e["type"] == "high" else "▼"
+        label = "만조" if e["type"] == "high" else "간조"
+        color = "#e0f2fe" if e["type"] == "high" else "#bae6fd"
+        rows_html += (
+            f"<div style='display:flex;justify-content:space-between;align-items:center;"
+            f"font-size:15px;font-weight:700;color:{color};margin-top:4px'>"
+            f"<span>{icon} {label}</span><span>{e['time']}</span></div>"
+        )
+    tide_card_body = f"<div style='margin-top:4px'>{rows_html}</div>"
+else:
+    tide_card_body = "<div class='env-sub' style='margin-top:8px'>만조·간조 정보 없음</div>"
 
 st.markdown(f"""
 <div class="env-wrap">
   <div class="env-card tide">
-    <div class="env-label">🌊 {weather_city} · {target.strftime('%m/%d')} 물때</div>
+    <div class="env-label">🌊 {target.strftime('%m/%d')} 물때</div>
     <div class="env-value">{mulddae}</div>
     <div class="env-sub">참고용 추정치</div>
-    {tide_line_html}
   </div>
   <div class="env-card strength">
     <div class="env-label">🌀 조류세기</div>
     <div class="env-value" style="font-size:26px">{stars}%</div>
     <div class="env-sub">사리 근처일수록 강함</div>
   </div>
+  <div class="env-card wave">
+    <div class="env-label">⏱️ {weather_city} 만조·간조</div>
+    {tide_card_body}
+  </div>
   <div class="env-card weather">
-    <div class="env-label">☀️ {weather_city} 날씨</div>
+    <div class="env-label">{weather_icon} {weather_city} 날씨</div>
     {weather_html}
   </div>
   <div class="env-card sea">
