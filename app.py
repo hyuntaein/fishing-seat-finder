@@ -806,6 +806,9 @@ with left:
     method = st.selectbox("낚시방식", METHOD_OPTIONS)
     region = st.selectbox("권역", REGIONS)
 
+    search_cities = ["전체"] + sorted({s.get("city", "") for s in sunsang_sites + manual_sites if s.get("city")})
+    search_city = st.selectbox("도시 (검색 필터)", search_cities)
+
     ports = ["전체"] + sorted({s.get("port", "") for s in sunsang_sites + manual_sites if s.get("port")})
     port = st.selectbox("출항지", ports)
 
@@ -923,14 +926,14 @@ with right:
         selected_sunsang = [
             s for s in sunsang_sites
             if (region == "전체" or s.get("region") == region)
-            and (city == "전체" or s.get("city") == city)
+            and (search_city == "전체" or s.get("city") == search_city)
             and (port == "전체" or s.get("port") == port)
         ]
         selected_manual = [
             s for s in manual_sites
             if include_manual
             and (region == "전체" or s.get("region") == region)
-            and (city == "전체" or not s.get("city") or s.get("city") == city)
+            and (search_city == "전체" or not s.get("city") or s.get("city") == search_city)
             and (port == "전체" or not s.get("port") or s.get("port") == port)
         ]
 
