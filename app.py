@@ -204,6 +204,14 @@ def build_tide_wave_svg_compact(events):
     )
 
 
+def build_tide_line_text(events):
+    """만조/간조를 '▲05:54  ▼00:00  ▲18:06  ▼12:38' 형태의 한 줄로 압축."""
+    if not events:
+        return ""
+    icon = {"high": "▲", "low": "▼"}
+    return "   ".join(f"{icon[e['type']]}{e['time']}" for e in events)
+
+
 MULDDAE_NAMES = ["1물", "2물", "3물", "4물", "5물", "6물", "7물(사리)", "8물(사리)",
                   "9물", "10물", "11물", "12물", "13물", "조금", "무시"]
 # 각 물때 단계별 조류 세기(1~5, 5가 가장 강함) — 사리(7~8물) 부근이 가장 세고 조금/무시가 가장 약함
@@ -632,27 +640,25 @@ if coords:
         sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
 
 tide_events = fetch_tide_events(weather_city, target.strftime("%Y-%m-%d"))
-wave_svg_compact = build_tide_wave_svg_compact(tide_events)
-if wave_svg_compact:
-    wave_card_html = f"{wave_svg_compact}<div class='env-sub' style='margin-top:2px'>▲만조 ▼간조</div>"
-else:
-    wave_card_html = "<div class='env-sub' style='margin-top:8px'>데이터 없음</div>"
+tide_line = build_tide_line_text(tide_events)
+tide_line_html = (
+    f"<div class='env-sub' style='margin-top:6px;font-size:13px;letter-spacing:0.3px'>{tide_line}</div>"
+    if tide_line else
+    "<div class='env-sub' style='margin-top:6px'>만조·간조 정보 없음</div>"
+)
 
 st.markdown(f"""
 <div class="env-wrap">
   <div class="env-card tide">
-    <div class="env-label">🌊 {target.strftime('%m/%d')} 물때</div>
+    <div class="env-label">🌊 {weather_city} · {target.strftime('%m/%d')} 물때</div>
     <div class="env-value">{mulddae}</div>
     <div class="env-sub">참고용 추정치</div>
+    {tide_line_html}
   </div>
   <div class="env-card strength">
     <div class="env-label">🌀 조류세기</div>
     <div class="env-value" style="font-size:26px">{stars}%</div>
     <div class="env-sub">사리 근처일수록 강함</div>
-  </div>
-  <div class="env-card wave">
-    <div class="env-label">🌀 {weather_city} 만조·간조</div>
-    {wave_card_html}
   </div>
   <div class="env-card weather">
     <div class="env-label">☀️ {weather_city} 날씨</div>
