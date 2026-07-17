@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -38,6 +39,121 @@ CITY_COORDS = {
     "영흥도": (37.2350, 126.4990),
     "홍원": (36.4060, 126.4550),
 }
+
+# 바다타임(badatime.com) 지역 ID (국립해양조사원 제공 조석 데이터)
+CITY_TIDE_IDS = {
+    "군산": 120,
+    "인천": 158,
+    "보령": 127,
+    "태안": 231,
+    "영흥도": 151,
+    "홍원": 523,
+}
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_tide_events(city: str, target_iso: str):
+    """badatime.com에서 해당 날짜의 만조/간조 시각(HH:MM)과 조위(cm)를 가져온다."""
+    city_id = CITY_TIDE_IDS.get(city)
+    if not city_id:
+        return None
+    target_date = datetime.strptime(target_iso, "%Y-%m-%d").date()
+    url = f"https://www.badatime.com/{city_id}/daily/{target_date:%Y-%m}"
+    try:
+        res = requests.get(url, headers=HEADERS_HTML, timeout=15)
+        res.raise_for_status()
+        res.encoding = res.apparent_encoding or "utf-8"
+        soup = BeautifulSoup(res.text, "html.parser")
+        text = soup.get_text(" ", strip=True)
+    except Exception:
+        return None
+
+    day_anchor_pat = re.compile(r"(\d{1,2})\([가-힣]\)\s+\d{1,2}\.\d{1,2}")
+    anchors = list(day_anchor_pat.finditer(text))
+    target_idx = None
+    for i, m in enumerate(anchors):
+        if int(m.group(1)) == target_date.day:
+            target_idx = i
+            break
+    if target_idx is None:
+        return None
+
+    start = anchors[target_idx].end()
+    end = anchors[target_idx + 1].start() if target_idx + 1 < len(anchors) else len(text)
+    block = text[start:end]
+
+    events = []
+    for tm in re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▲", block):
+        events.append({"type": "high", "time": tm.group(1), "height": int(tm.group(2))})
+    for tm in re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▼", block):
+        events.append({"type": "low", "time": tm.group(1), "height": int(tm.group(2))})
+
+    if not events:
+        return None
+    events.sort(key=lambda e: e["time"])
+    return events
+
+
+def build_tide_wave_svg(events):
+    """만조/간조 지점을 코사인 보간으로 이어 물결 곡선 SVG를 만든다."""
+    if not events or len(events) < 2:
+        return None
+
+    W, H = 640, 150
+    pad_x, pad_top, pad_bottom = 16, 26, 34
+
+    def to_minutes(t):
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+
+    pts = [(to_minutes(e["time"]), e["height"], e["type"]) for e in events]
+    heights = [p[1] for p in pts]
+    hmin, hmax = min(heights), max(heights)
+    if hmax == hmin:
+        hmax = hmin + 1
+
+    def x_of(minute):
+        return pad_x + (minute / 1440) * (W - 2 * pad_x)
+
+    def y_of(h):
+        return pad_top + (1 - (h - hmin) / (hmax - hmin)) * (H - pad_top - pad_bottom)
+
+    path_pts = []
+    for i in range(len(pts) - 1):
+        t0, h0, _ = pts[i]
+        t1, h1, _ = pts[i + 1]
+        steps = 20
+        last = i == len(pts) - 2
+        for s in range(steps + 1 if last else steps):
+            frac = s / steps
+            t = t0 + (t1 - t0) * frac
+            h = h0 + (h1 - h0) / 2 * (1 - math.cos(math.pi * frac))
+            path_pts.append((x_of(t), y_of(h)))
+
+    d = "M " + " L ".join(f"{x:.1f},{y:.1f}" for x, y in path_pts)
+    area_d = d + f" L {path_pts[-1][0]:.1f},{H - pad_bottom + 6:.1f} L {path_pts[0][0]:.1f},{H - pad_bottom + 6:.1f} Z"
+
+    marks = ""
+    for t, h, typ in pts:
+        x, y = x_of(t), y_of(h)
+        hh, mm = divmod(t, 60)
+        icon = "▲" if typ == "high" else "▼"
+        label_y = y - 12 if typ == "high" else y + 22
+        color = "#e0f2fe" if typ == "high" else "#bae6fd"
+        marks += (
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="white" stroke="#0369a1" stroke-width="2" />'
+            f'<text x="{x:.1f}" y="{label_y:.1f}" font-size="12" fill="{color}" '
+            f'text-anchor="middle" font-weight="800">{icon} {hh:02d}:{mm:02d}</text>'
+        )
+
+    return f"""
+    <svg width="100%" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">
+      <path d="{area_d}" fill="white" opacity="0.10" />
+      <path d="{d}" fill="none" stroke="white" stroke-width="2.5" opacity="0.95" />
+      {marks}
+    </svg>
+    """
+
 
 MULDDAE_NAMES = ["1물", "2물", "3물", "4물", "5물", "6물", "7물(사리)", "8물(사리)",
                   "9물", "10물", "11물", "12물", "13물", "조금", "무시"]
@@ -412,6 +528,7 @@ st.markdown("""
 .status{font-weight:800;color:#0ea5e9;text-align:right}
 .meta{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;color:#333}
 .env-wrap{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 22px}
+.tide-wave-card{background:linear-gradient(135deg,#0369a1,#0ea5e9 60%,#22d3ee);border-radius:20px;padding:18px 20px 10px;color:white;box-shadow:0 4px 14px rgba(0,0,0,.12);margin-bottom:16px}
 .env-card{flex:1;min-width:180px;border-radius:18px;padding:18px 20px;color:white;box-shadow:0 4px 14px rgba(0,0,0,.10)}
 .env-card.tide{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
 .env-card.strength{background:linear-gradient(135deg,#8b5cf6,#6d28d9)}
@@ -464,6 +581,25 @@ if coords:
         weather_html = f"<div class='env-value'>{w['최고기온']}° / {w['최저기온']}°</div><div class='env-sub'>강수 {w['강수확률']}% · 풍속 {w['최대풍속']}km/h</div>"
     if sea is not None:
         sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
+
+tide_events = fetch_tide_events(weather_city, target.strftime("%Y-%m-%d"))
+wave_svg = build_tide_wave_svg(tide_events)
+
+if wave_svg:
+    st.markdown(f"""
+    <div class="tide-wave-card">
+      <div class="env-label" style="margin-bottom:2px">🌊 {weather_city} · {target.strftime('%m/%d')} 만조·간조</div>
+      {wave_svg}
+      <div class="env-sub" style="margin-top:2px">국립해양조사원 제공(badatime.com) · ▲만조 ▼간조</div>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown(f"""
+    <div class="tide-wave-card">
+      <div class="env-label">🌊 {weather_city} · {target.strftime('%m/%d')} 만조·간조</div>
+      <div class="env-sub" style="margin-top:8px">이 날짜의 만조·간조 데이터를 가져오지 못했어요. (도시를 선택했는지, 날짜가 너무 먼 미래는 아닌지 확인해주세요)</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown(f"""
 <div class="env-wrap">
