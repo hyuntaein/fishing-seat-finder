@@ -197,12 +197,11 @@ def build_tide_wave_svg_compact(events):
         for t, h, _ in pts
     )
 
-    return f"""
-    <svg width="100%" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">
-      <path d="{d}" fill="none" stroke="white" stroke-width="2" opacity="0.95" />
-      {dots}
-    </svg>
-    """
+    return (
+        f'<svg width="100%" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">'
+        f'<path d="{d}" fill="none" stroke="white" stroke-width="2" opacity="0.95" />'
+        f'{dots}</svg>'
+    )
 
 
 MULDDAE_NAMES = ["1물", "2물", "3물", "4물", "5물", "6물", "7물(사리)", "8물(사리)",
