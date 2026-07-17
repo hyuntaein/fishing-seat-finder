@@ -801,13 +801,13 @@ left, right = st.columns([1, 3.2], gap="large")
 with left:
     st.subheader("검색 조건")
 
+    search_cities = ["전체"] + sorted({s.get("city", "") for s in sunsang_sites + manual_sites if s.get("city")})
+    search_city = st.selectbox("도시 (배 검색용)", search_cities)
+
     people = st.number_input("인원", min_value=1, max_value=30, value=2)
     fish = st.selectbox("어종", FISH_OPTIONS)
     method = st.selectbox("낚시방식", METHOD_OPTIONS)
     region = st.selectbox("권역", REGIONS)
-
-    search_cities = ["전체"] + sorted({s.get("city", "") for s in sunsang_sites + manual_sites if s.get("city")})
-    search_city = st.selectbox("도시 (검색 필터)", search_cities)
 
     ports = ["전체"] + sorted({s.get("port", "") for s in sunsang_sites + manual_sites if s.get("port")})
     port = st.selectbox("출항지", ports)
@@ -909,6 +909,9 @@ with right:
                 pd.DataFrame(all_sites_rows),
                 use_container_width=True, hide_index=True,
                 height=38 * (len(all_sites_rows) + 1) + 3,
+                column_config={
+                    "주소": st.column_config.LinkColumn("주소", display_text="바로가기 ↗"),
+                },
             )
         else:
             st.caption("등록된 사이트가 없습니다.")
