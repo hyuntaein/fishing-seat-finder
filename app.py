@@ -29,6 +29,78 @@ METHOD_OPTIONS = ["전체", "타이라바", "다운샷", "외수질", "생미끼
 METHOD_WORDS = set(METHOD_OPTIONS[1:])
 FISH_WORDS = set(FISH_OPTIONS[1:])
 
+# 도시명 -> 대략적인 위도/경도 (날씨·수온 조회용)
+CITY_COORDS = {
+    "군산": (35.9756, 126.5306),
+    "인천": (37.4519, 126.5975),
+    "보령": (36.4084, 126.4880),
+    "태안": (36.7455, 126.1859),
+    "영흥도": (37.2350, 126.4990),
+    "홍원": (36.4060, 126.4550),
+}
+
+MULDDAE_NAMES = ["1물", "2물", "3물", "4물", "5물", "6물", "7물(사리)", "8물(사리)",
+                  "9물", "10물", "11물", "12물", "13물", "조금", "무시"]
+
+
+def estimate_mulddae(target_date: date) -> str:
+    """음력 계산 라이브러리 없이, 삭(신월) 기준일로부터 경과일을 이용해 물때를 추정한다.
+    (실제 물때표와 하루 정도 오차가 있을 수 있는 참고용 수치입니다)"""
+    ref_new_moon = date(2000, 1, 6)  # 실제 삭(신월)이었던 기준일
+    synodic_month = 29.530588
+    days_since = (target_date - ref_new_moon).days
+    phase = days_since % synodic_month
+    lunar_day = int(phase) + 1  # 1~30
+    # 15일 주기로 물때 이름 매핑 (보름/그믐 부근이 사리, 반달 부근이 조금)
+    idx = (lunar_day - 1) % 15
+    return MULDDAE_NAMES[idx]
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_weather(lat: float, lon: float, target_iso: str):
+    """Open-Meteo(무료, API키 불필요)로 해당 날짜의 날씨/수온을 가져온다."""
+    result = {"weather": None, "sea_temp": None, "error": None}
+    try:
+        w = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat, "longitude": lon,
+                "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max",
+                "timezone": "Asia/Seoul",
+                "start_date": target_iso, "end_date": target_iso,
+            },
+            timeout=10,
+        ).json()
+        daily = w.get("daily", {})
+        if daily.get("time"):
+            result["weather"] = {
+                "최고기온": daily.get("temperature_2m_max", [None])[0],
+                "최저기온": daily.get("temperature_2m_min", [None])[0],
+                "강수확률": daily.get("precipitation_probability_max", [None])[0],
+                "최대풍속": daily.get("windspeed_10m_max", [None])[0],
+            }
+    except Exception as e:
+        result["error"] = str(e)
+
+    try:
+        s = requests.get(
+            "https://marine-api.open-meteo.com/v1/marine",
+            params={
+                "latitude": lat, "longitude": lon,
+                "daily": "sea_surface_temperature_max",
+                "timezone": "Asia/Seoul",
+                "start_date": target_iso, "end_date": target_iso,
+            },
+            timeout=10,
+        ).json()
+        daily = s.get("daily", {})
+        if daily.get("time") and daily.get("sea_surface_temperature_max"):
+            result["sea_temp"] = daily["sea_surface_temperature_max"][0]
+    except Exception:
+        pass
+
+    return result
+
 
 def load_json(path: Path, default):
     if not path.exists():
@@ -345,6 +417,27 @@ with left:
     city = st.selectbox("도시", cities)
     ports = ["전체"] + sorted({s.get("port", "") for s in sunsang_sites + manual_sites if s.get("port")})
     port = st.selectbox("출항지", ports)
+
+    mulddae = estimate_mulddae(target)
+    weather_city = city if city != "전체" else "군산"
+    coords = CITY_COORDS.get(weather_city)
+    with st.container(border=True):
+        st.markdown(f"🌊 **{target.strftime('%m/%d')} 물때** · {mulddae} · <span style='color:#999;font-size:12px'>(참고용 추정치)</span>", unsafe_allow_html=True)
+        if coords:
+            wdata = fetch_weather(*coords, target.strftime("%Y-%m-%d"))
+            w = wdata.get("weather")
+            sea = wdata.get("sea_temp")
+            if w:
+                st.caption(f"☀️ {weather_city} 날씨: 최고 {w['최고기온']}℃ / 최저 {w['최저기온']}℃ · 강수확률 {w['강수확률']}% · 풍속 {w['최대풍속']}km/h")
+            else:
+                st.caption(f"☀️ {weather_city} 날씨: 예보 범위 밖이거나 조회 실패 (보통 16일 이내 날짜만 지원)")
+            if sea is not None:
+                st.caption(f"🌡️ {weather_city} 인근 수온: 약 {sea}℃")
+            else:
+                st.caption("🌡️ 수온: 예보 범위 밖이거나 조회 실패")
+        else:
+            st.caption("도시를 선택하면 날씨/수온도 같이 보여드려요.")
+
     keyword = st.text_input("선사명 검색", placeholder="예: 참바다, 루키나")
 
     search = st.button("🔎 실시간 조회", type="primary", use_container_width=True)
