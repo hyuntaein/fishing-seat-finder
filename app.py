@@ -393,6 +393,14 @@ st.markdown("""
 .muted{font-size:13px;color:#777;margin-top:3px}
 .status{font-weight:800;color:#0ea5e9;text-align:right}
 .meta{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;color:#333}
+.env-wrap{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 22px}
+.env-card{flex:1;min-width:180px;border-radius:18px;padding:18px 20px;color:white;box-shadow:0 4px 14px rgba(0,0,0,.10)}
+.env-card.tide{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
+.env-card.weather{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.env-card.sea{background:linear-gradient(135deg,#10b981,#047857)}
+.env-label{font-size:13px;opacity:.9;font-weight:600;margin-bottom:6px}
+.env-value{font-size:26px;font-weight:900;line-height:1.15}
+.env-sub{font-size:12px;opacity:.85;margin-top:6px}
 </style>
 """, unsafe_allow_html=True)
 
@@ -402,41 +410,59 @@ manual_sites = load_json(MANUAL_FILE, [])
 st.markdown('<div class="main-title">🎣 낚시 빈자리 통합검색 LIVE v2</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">어종과 낚시방식을 분리했습니다. 예: 참돔 = 어종, 타이라바 = 낚시방식.</div>', unsafe_allow_html=True)
 
+top1, top2 = st.columns([1, 1])
+with top1:
+    target = st.date_input("출조일", value=date.today())
+with top2:
+    _all_cities = ["전체"] + sorted({s.get("city", "") for s in sunsang_sites + manual_sites if s.get("city")})
+    city = st.selectbox("도시 (물때·날씨 기준)", _all_cities)
+
+mulddae = estimate_mulddae(target)
+weather_city = city if city != "전체" else "군산"
+coords = CITY_COORDS.get(weather_city)
+
+weather_html = f"<div class='env-value'>예보 범위 밖</div><div class='env-sub'>보통 16일 이내만 제공</div>"
+sea_html = f"<div class='env-value'>-</div><div class='env-sub'>조회 실패/범위 밖</div>"
+if coords:
+    wdata = fetch_weather(*coords, target.strftime("%Y-%m-%d"))
+    w = wdata.get("weather")
+    sea = wdata.get("sea_temp")
+    if w:
+        weather_html = f"<div class='env-value'>{w['최고기온']}° / {w['최저기온']}°</div><div class='env-sub'>강수 {w['강수확률']}% · 풍속 {w['최대풍속']}km/h</div>"
+    if sea is not None:
+        sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
+
+st.markdown(f"""
+<div class="env-wrap">
+  <div class="env-card tide">
+    <div class="env-label">🌊 {target.strftime('%m/%d')} 물때</div>
+    <div class="env-value">{mulddae}</div>
+    <div class="env-sub">참고용 추정치</div>
+  </div>
+  <div class="env-card weather">
+    <div class="env-label">☀️ {weather_city} 날씨</div>
+    {weather_html}
+  </div>
+  <div class="env-card sea">
+    <div class="env-label">🌡️ {weather_city} 수온</div>
+    {sea_html}
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 left, right = st.columns([1, 3.2], gap="large")
 
 with left:
     st.subheader("검색 조건")
 
-    target = st.date_input("출조일", value=date.today())
     people = st.number_input("인원", min_value=1, max_value=30, value=2)
     fish = st.selectbox("어종", FISH_OPTIONS)
     method = st.selectbox("낚시방식", METHOD_OPTIONS)
     region = st.selectbox("권역", REGIONS)
 
-    cities = ["전체"] + sorted({s.get("city", "") for s in sunsang_sites + manual_sites if s.get("city")})
-    city = st.selectbox("도시", cities)
     ports = ["전체"] + sorted({s.get("port", "") for s in sunsang_sites + manual_sites if s.get("port")})
     port = st.selectbox("출항지", ports)
 
-    mulddae = estimate_mulddae(target)
-    weather_city = city if city != "전체" else "군산"
-    coords = CITY_COORDS.get(weather_city)
-    with st.container(border=True):
-        st.markdown(f"🌊 **{target.strftime('%m/%d')} 물때** · {mulddae} · <span style='color:#999;font-size:12px'>(참고용 추정치)</span>", unsafe_allow_html=True)
-        if coords:
-            wdata = fetch_weather(*coords, target.strftime("%Y-%m-%d"))
-            w = wdata.get("weather")
-            sea = wdata.get("sea_temp")
-            if w:
-                st.caption(f"☀️ {weather_city} 날씨: 최고 {w['최고기온']}℃ / 최저 {w['최저기온']}℃ · 강수확률 {w['강수확률']}% · 풍속 {w['최대풍속']}km/h")
-            else:
-                st.caption(f"☀️ {weather_city} 날씨: 예보 범위 밖이거나 조회 실패 (보통 16일 이내 날짜만 지원)")
-            if sea is not None:
-                st.caption(f"🌡️ {weather_city} 인근 수온: 약 {sea}℃")
-            else:
-                st.caption("🌡️ 수온: 예보 범위 밖이거나 조회 실패")
-        else:
-            st.caption("도시를 선택하면 날씨/수온도 같이 보여드려요.")
 
     keyword = st.text_input("선사명 검색", placeholder="예: 참바다, 루키나")
 
