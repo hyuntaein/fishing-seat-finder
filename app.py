@@ -41,11 +41,19 @@ CITY_COORDS = {
 
 MULDDAE_NAMES = ["1물", "2물", "3물", "4물", "5물", "6물", "7물(사리)", "8물(사리)",
                   "9물", "10물", "11물", "12물", "13물", "조금", "무시"]
+# 각 물때 단계별 조류 세기(1~5, 5가 가장 강함) — 사리(7~8물) 부근이 가장 세고 조금/무시가 가장 약함
+MULDDAE_STRENGTH = [2, 3, 4, 5, 5, 5, 5, 5, 4, 3, 2, 2, 1, 1, 1]
 
 
-def estimate_mulddae(target_date: date) -> str:
+def mulddae_strength_stars(idx: int) -> str:
+    n = MULDDAE_STRENGTH[idx]
+    return "★" * n + "☆" * (5 - n)
+
+
+def estimate_mulddae(target_date: date):
     """음력 계산 라이브러리 없이, 삭(신월) 기준일로부터 경과일을 이용해 물때를 추정한다.
-    (실제 물때표와 하루 정도 오차가 있을 수 있는 참고용 수치입니다)"""
+    (실제 물때표와 하루 정도 오차가 있을 수 있는 참고용 수치입니다)
+    반환값: (물때이름, 인덱스)"""
     ref_new_moon = date(2000, 1, 6)  # 실제 삭(신월)이었던 기준일
     synodic_month = 29.530588
     days_since = (target_date - ref_new_moon).days
@@ -53,7 +61,7 @@ def estimate_mulddae(target_date: date) -> str:
     lunar_day = int(phase) + 1  # 1~30
     # 15일 주기로 물때 이름 매핑 (보름/그믐 부근이 사리, 반달 부근이 조금)
     idx = (lunar_day - 1) % 15
-    return MULDDAE_NAMES[idx]
+    return MULDDAE_NAMES[idx], idx
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -396,6 +404,7 @@ st.markdown("""
 .env-wrap{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 22px}
 .env-card{flex:1;min-width:180px;border-radius:18px;padding:18px 20px;color:white;box-shadow:0 4px 14px rgba(0,0,0,.10)}
 .env-card.tide{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
+.env-card.strength{background:linear-gradient(135deg,#8b5cf6,#6d28d9)}
 .env-card.weather{background:linear-gradient(135deg,#f59e0b,#d97706)}
 .env-card.sea{background:linear-gradient(135deg,#10b981,#047857)}
 .env-label{font-size:13px;opacity:.9;font-weight:600;margin-bottom:6px}
@@ -417,7 +426,8 @@ with top2:
     _all_cities = ["전체"] + sorted({s.get("city", "") for s in sunsang_sites + manual_sites if s.get("city")})
     city = st.selectbox("도시 (물때·날씨 기준)", _all_cities)
 
-mulddae = estimate_mulddae(target)
+mulddae, mulddae_idx = estimate_mulddae(target)
+stars = mulddae_strength_stars(mulddae_idx)
 weather_city = city if city != "전체" else "군산"
 coords = CITY_COORDS.get(weather_city)
 
@@ -438,6 +448,11 @@ st.markdown(f"""
     <div class="env-label">🌊 {target.strftime('%m/%d')} 물때</div>
     <div class="env-value">{mulddae}</div>
     <div class="env-sub">참고용 추정치</div>
+  </div>
+  <div class="env-card strength">
+    <div class="env-label">🌀 물세기</div>
+    <div class="env-value" style="font-size:22px;letter-spacing:2px">{stars}</div>
+    <div class="env-sub">사리 근처일수록 강함</div>
   </div>
   <div class="env-card weather">
     <div class="env-label">☀️ {weather_city} 날씨</div>
