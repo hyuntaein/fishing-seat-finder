@@ -695,7 +695,7 @@ st.markdown("""
   <div class="brand-badge">🎣</div>
   <div>
     <div class="brand-title">Fishing Seat Finder</div>
-    <div class="brand-kr">MADE BY 인현태 · THANK YOU FOR IDEAS 영탁, 정환형, 귀선형, 정국형</div>
+    <div class="brand-kr">MADE BY 인현태 · THANK YOU FOR IDEAS 영탁, 정환형, 정국형, 귀선형</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
