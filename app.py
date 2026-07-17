@@ -643,7 +643,7 @@ if coords:
             weather_icon = "⛅"
         else:
             weather_icon = "☀️"
-        weather_html = f"<div class='env-value'>{w['최고기온']}° / {w['최저기온']}°</div><div class='env-sub'>강수 {rain_prob}% · 풍속 {w['최대풍속']}km/h</div>"
+        weather_html = f"<div style='display:flex;align-items:center;gap:10px'><span style='font-size:40px;line-height:1'>{weather_icon}</span><div class='env-value'>{w['최고기온']}° / {w['최저기온']}°</div></div><div class='env-sub'>강수 {rain_prob}% · 풍속 {w['최대풍속']}km/h</div>"
     if sea is not None:
         sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
 
@@ -681,7 +681,7 @@ st.markdown(f"""
     {tide_card_body}
   </div>
   <div class="env-card weather">
-    <div class="env-label">{weather_icon} {weather_city} 날씨</div>
+    <div class="env-label">{weather_city} 날씨</div>
     {weather_html}
   </div>
   <div class="env-card sea">
