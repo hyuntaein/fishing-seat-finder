@@ -645,16 +645,18 @@ st.markdown("""
 .env-label{font-size:13px;opacity:.9;font-weight:600;margin-bottom:6px}
 .env-value{font-size:26px;font-weight:900;line-height:1.15}
 .env-sub{font-size:12px;opacity:.85;margin-top:6px}
+.tide-row{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:700;margin-top:4px}
 
 @media (max-width: 680px) {
   .brand-title{font-size:26px}
   .brand-badge{width:42px;height:42px;font-size:20px}
   .brand-kr{font-size:11px}
-  .env-wrap{gap:10px}
-  .env-card{min-width:calc(50% - 5px);padding:14px 14px;flex:0 0 calc(50% - 5px)}
-  .env-value{font-size:20px}
-  .env-label{font-size:11.5px}
-  .env-sub{font-size:11px}
+  .env-wrap{gap:8px}
+  .env-card{min-width:calc(50% - 4px);padding:9px 10px;flex:0 0 calc(50% - 4px);border-radius:12px}
+  .env-value{font-size:16px;line-height:1.1}
+  .env-label{font-size:10px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .env-sub{font-size:9.5px;margin-top:2px;line-height:1.3}
+  .tide-row{font-size:11.5px;margin-top:2px}
   .card-banner{height:72px}
   .card-boat-icon{font-size:30px}
   .card-name{font-size:16px}
@@ -676,7 +678,7 @@ st.markdown("""
   <div class="brand-badge">🎣</div>
   <div>
     <div class="brand-title">Fishing Seat Finder</div>
-    <div class="brand-kr">MADE BY 인현태 · THANK YOU FOR IDEAS 영탁, 정환형, 정국형, 귀선형</div>
+    <div class="brand-kr">MADE BY 인현태 · THANK YOU FOR IDEAS 영탁, 정환형, 귀선형, 정국형</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -727,8 +729,7 @@ if tide_events:
         label = "만조" if e["type"] == "high" else "간조"
         color = "#e0f2fe" if e["type"] == "high" else "#bae6fd"
         rows_html += (
-            f"<div style='display:flex;justify-content:space-between;align-items:center;"
-            f"font-size:15px;font-weight:700;color:{color};margin-top:4px'>"
+            f"<div class='tide-row' style='color:{color}'>"
             f"<span>{icon} {label}</span><span>{e['time']}</span></div>"
         )
     tide_card_body = f"<div style='margin-top:4px'>{rows_html}</div>"
