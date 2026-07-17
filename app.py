@@ -256,8 +256,8 @@ def estimate_mulddae(target_date: date):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_weather(lat: float, lon: float, target_iso: str):
-    """Open-Meteo(무료, API키 불필요)로 해당 날짜의 날씨/수온을 가져온다."""
-    result = {"weather": None, "sea_temp": None, "error": None}
+    """Open-Meteo(무료, API키 불필요)로 해당 날짜의 날씨/수온/파고를 가져온다."""
+    result = {"weather": None, "sea_temp": None, "wave_height": None, "error": None}
     try:
         w = requests.get(
             "https://api.open-meteo.com/v1/forecast",
@@ -285,7 +285,7 @@ def fetch_weather(lat: float, lon: float, target_iso: str):
             "https://marine-api.open-meteo.com/v1/marine",
             params={
                 "latitude": lat, "longitude": lon,
-                "daily": "sea_surface_temperature_max",
+                "daily": "sea_surface_temperature_max,wave_height_max",
                 "timezone": "Asia/Seoul",
                 "start_date": target_iso, "end_date": target_iso,
             },
@@ -294,10 +294,26 @@ def fetch_weather(lat: float, lon: float, target_iso: str):
         daily = s.get("daily", {})
         if daily.get("time") and daily.get("sea_surface_temperature_max"):
             result["sea_temp"] = daily["sea_surface_temperature_max"][0]
+        if daily.get("time") and daily.get("wave_height_max"):
+            result["wave_height"] = daily["wave_height_max"][0]
     except Exception:
         pass
 
     return result
+
+
+def rate_sail_condition(windspeed_kmh, wave_m):
+    """풍속(km/h)과 파고(m)로 출조 적합도를 판정한다."""
+    if windspeed_kmh is None or wave_m is None:
+        return "정보 없음", "#94a3b8", ""
+    wind_ms = windspeed_kmh / 3.6
+    if wind_ms >= 14 or wave_m >= 3:
+        return "출조 취소 가능성", "#C1503F", "풍랑주의보 수준"
+    if wind_ms <= 6 and wave_m <= 0.8:
+        return "매우 좋음", "#12977A", "바람·파도 모두 양호"
+    if wave_m >= 1:
+        return "조금 불편", "#D98C2B", "파고 다소 높음"
+    return "보통", "#0e7fa6", "출조 가능 범위"
 
 
 def load_json(path: Path, default):
@@ -642,6 +658,7 @@ st.markdown("""
 .env-card.strength{background:linear-gradient(135deg,#8b5cf6,#6d28d9)}
 .env-card.weather{background:linear-gradient(135deg,#f59e0b,#d97706)}
 .env-card.sea{background:linear-gradient(135deg,#10b981,#047857)}
+.env-card.sail{background:linear-gradient(135deg,#1e293b,#334155)}
 .env-label{font-size:13px;opacity:.9;font-weight:600;margin-bottom:6px}
 .env-value{font-size:26px;font-weight:900;line-height:1.15}
 .env-sub{font-size:12px;opacity:.85;margin-top:6px}
@@ -703,11 +720,13 @@ coords = CITY_COORDS.get(weather_city)
 
 weather_html = f"<div class='env-value'>예보 범위 밖</div><div class='env-sub'>보통 16일 이내만 제공</div>"
 sea_html = f"<div class='env-value'>-</div><div class='env-sub'>조회 실패/범위 밖</div>"
+sail_html = "<div class='env-value' style='font-size:16px'>정보 없음</div><div class='env-sub'>예보 범위 밖</div>"
 weather_icon = "☀️"
 if coords:
     wdata = fetch_weather(*coords, target.strftime("%Y-%m-%d"))
     w = wdata.get("weather")
     sea = wdata.get("sea_temp")
+    wave = wdata.get("wave_height")
     if w:
         rain_prob = w["강수확률"] or 0
         if rain_prob >= 50:
@@ -717,6 +736,16 @@ if coords:
         else:
             weather_icon = "☀️"
         weather_html = f"<div style='display:flex;align-items:center;gap:10px'><span style='font-size:40px;line-height:1'>{weather_icon}</span><div class='env-value'>{w['최고기온']}° / {w['최저기온']}°</div></div><div class='env-sub'>강수 {rain_prob}% · 풍속 {w['최대풍속']}km/h</div>"
+
+        wind_ms = round(w["최대풍속"] / 3.6, 1) if w["최대풍속"] is not None else None
+        label, color, sub = rate_sail_condition(w["최대풍속"], wave)
+        wave_txt = f"{wave}m" if wave is not None else "-"
+        wind_txt = f"{wind_ms}m/s" if wind_ms is not None else "-"
+        sail_html = (
+            f"<div class='env-value' style='font-size:17px;color:{color}'>{label}</div>"
+            f"<div class='env-sub'>{sub}</div>"
+            f"<div class='env-sub' style='margin-top:6px'>💨 {wind_txt} · 🌊 파고 {wave_txt}</div>"
+        )
     if sea is not None:
         sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
 
@@ -759,6 +788,10 @@ st.markdown(f"""
   <div class="env-card sea">
     <div class="env-label">🌡️ {weather_city} 수온</div>
     {sea_html}
+  </div>
+  <div class="env-card sail">
+    <div class="env-label">⛵ 출조 적합도</div>
+    {sail_html}
   </div>
 </div>
 """, unsafe_allow_html=True)
