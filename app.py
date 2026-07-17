@@ -155,6 +155,56 @@ def build_tide_wave_svg(events):
     """
 
 
+def build_tide_wave_svg_compact(events):
+    """작은 카드용 미니 물결 곡선 (라벨 없이 곡선+점만)."""
+    if not events or len(events) < 2:
+        return None
+
+    W, H = 220, 70
+    pad_x, pad_top, pad_bottom = 8, 10, 10
+
+    def to_minutes(t):
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+
+    pts = [(to_minutes(e["time"]), e["height"], e["type"]) for e in events]
+    heights = [p[1] for p in pts]
+    hmin, hmax = min(heights), max(heights)
+    if hmax == hmin:
+        hmax = hmin + 1
+
+    def x_of(minute):
+        return pad_x + (minute / 1440) * (W - 2 * pad_x)
+
+    def y_of(h):
+        return pad_top + (1 - (h - hmin) / (hmax - hmin)) * (H - pad_top - pad_bottom)
+
+    path_pts = []
+    for i in range(len(pts) - 1):
+        t0, h0, _ = pts[i]
+        t1, h1, _ = pts[i + 1]
+        steps = 14
+        last = i == len(pts) - 2
+        for s in range(steps + 1 if last else steps):
+            frac = s / steps
+            t = t0 + (t1 - t0) * frac
+            h = h0 + (h1 - h0) / 2 * (1 - math.cos(math.pi * frac))
+            path_pts.append((x_of(t), y_of(h)))
+
+    d = "M " + " L ".join(f"{x:.1f},{y:.1f}" for x, y in path_pts)
+    dots = "".join(
+        f'<circle cx="{x_of(t):.1f}" cy="{y_of(h):.1f}" r="3" fill="white" stroke="#0369a1" stroke-width="1.5" />'
+        for t, h, _ in pts
+    )
+
+    return f"""
+    <svg width="100%" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">
+      <path d="{d}" fill="none" stroke="white" stroke-width="2" opacity="0.95" />
+      {dots}
+    </svg>
+    """
+
+
 MULDDAE_NAMES = ["1물", "2물", "3물", "4물", "5물", "6물", "7물(사리)", "8물(사리)",
                   "9물", "10물", "11물", "12물", "13물", "조금", "무시"]
 # 각 물때 단계별 조류 세기(1~5, 5가 가장 강함) — 사리(7~8물) 부근이 가장 세고 조금/무시가 가장 약함
@@ -528,7 +578,7 @@ st.markdown("""
 .status{font-weight:800;color:#0ea5e9;text-align:right}
 .meta{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;color:#333}
 .env-wrap{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 22px}
-.tide-wave-card{background:linear-gradient(135deg,#0369a1,#0ea5e9 60%,#22d3ee);border-radius:20px;padding:18px 20px 10px;color:white;box-shadow:0 4px 14px rgba(0,0,0,.12);margin-bottom:16px}
+.env-card.wave{background:linear-gradient(135deg,#0369a1,#0ea5e9)}
 .env-card{flex:1;min-width:180px;border-radius:18px;padding:18px 20px;color:white;box-shadow:0 4px 14px rgba(0,0,0,.10)}
 .env-card.tide{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
 .env-card.strength{background:linear-gradient(135deg,#8b5cf6,#6d28d9)}
@@ -583,23 +633,11 @@ if coords:
         sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
 
 tide_events = fetch_tide_events(weather_city, target.strftime("%Y-%m-%d"))
-wave_svg = build_tide_wave_svg(tide_events)
-
-if wave_svg:
-    st.markdown(f"""
-    <div class="tide-wave-card">
-      <div class="env-label" style="margin-bottom:2px">🌊 {weather_city} · {target.strftime('%m/%d')} 만조·간조</div>
-      {wave_svg}
-      <div class="env-sub" style="margin-top:2px">국립해양조사원 제공(badatime.com) · ▲만조 ▼간조</div>
-    </div>
-    """, unsafe_allow_html=True)
+wave_svg_compact = build_tide_wave_svg_compact(tide_events)
+if wave_svg_compact:
+    wave_card_html = f"{wave_svg_compact}<div class='env-sub' style='margin-top:2px'>▲만조 ▼간조</div>"
 else:
-    st.markdown(f"""
-    <div class="tide-wave-card">
-      <div class="env-label">🌊 {weather_city} · {target.strftime('%m/%d')} 만조·간조</div>
-      <div class="env-sub" style="margin-top:8px">이 날짜의 만조·간조 데이터를 가져오지 못했어요. (도시를 선택했는지, 날짜가 너무 먼 미래는 아닌지 확인해주세요)</div>
-    </div>
-    """, unsafe_allow_html=True)
+    wave_card_html = "<div class='env-sub' style='margin-top:8px'>데이터 없음</div>"
 
 st.markdown(f"""
 <div class="env-wrap">
@@ -612,6 +650,10 @@ st.markdown(f"""
     <div class="env-label">🌀 조류세기</div>
     <div class="env-value" style="font-size:26px">{stars}%</div>
     <div class="env-sub">사리 근처일수록 강함</div>
+  </div>
+  <div class="env-card wave">
+    <div class="env-label">🌀 {weather_city} 만조·간조</div>
+    {wave_card_html}
   </div>
   <div class="env-card weather">
     <div class="env-label">☀️ {weather_city} 날씨</div>
