@@ -549,6 +549,21 @@ def filter_df(df, available_only, favorites_only, favorites, keyword):
     return out
 
 
+SHIP_BANNER_GRADIENTS = [
+    "linear-gradient(135deg,#0b3b57,#0e7fa6)",
+    "linear-gradient(135deg,#0e7fa6,#14b8a6)",
+    "linear-gradient(135deg,#1e3a5f,#2563eb)",
+    "linear-gradient(135deg,#155e63,#0ea5a0)",
+    "linear-gradient(135deg,#0f3d5c,#4f8ea8)",
+]
+
+STATUS_STYLE = {
+    "예약 가능": {"badge": "여유", "badge_bg": "#12977A"},
+    "확인 필요": {"badge": "마감임박", "badge_bg": "#D98C2B"},
+    "마감": {"badge": "마감", "badge_bg": "#C1503F"},
+}
+
+
 def render_grouped_cards(df):
     if df.empty:
         st.info("표시할 결과가 없습니다.")
@@ -556,27 +571,35 @@ def render_grouped_cards(df):
 
     for ship_name, group_df in df.groupby("선사명", sort=False):
         with st.expander(f"🚤 {ship_name} ({len(group_df)}개 일정)", expanded=True):
+            gradient = SHIP_BANNER_GRADIENTS[hash(ship_name) % len(SHIP_BANNER_GRADIENTS)]
             for _, row in group_df.iterrows():
-                icon = "🟢" if row["_group"] == "예약 가능" else "🔴" if row["_group"] == "마감" else "🟡"
-                st.markdown(f"""
-                <div class="result-card">
-                  <div class="card-top">
-                    <div>
-                      <div class="title">{icon} {row['선사명']} {('(' + row['주어종'] + ')') if row.get('주어종') else ''}</div>
-                      <div class="sub">{row['어종'] or '어종 확인 필요'} {('· ' + row['낚시방식']) if row['낚시방식'] else ''}</div>
-                      <div class="muted">{row['권역']} · {row.get('도시','')} · {row['출항지']}</div>
-                    </div>
-                    <div class="status">{row['상태']}</div>
-                  </div>
-                  <div class="meta">
-                    <span>가격: {row['가격'] or '-'}</span>
-                    <span>시간: {row['출항시간'] or '-'}</span>
-                    <span>남은자리: {row['남은자리'] or '-'}</span>
-                    <span>취소: {row['취소인원'] or '-'}</span>
-                  </div>
-                  <a href="{row['예약링크']}" target="_blank">예약 페이지 열기</a>
-                </div>
-                """, unsafe_allow_html=True)
+                st_info = STATUS_STYLE.get(row["_group"], STATUS_STYLE["확인 필요"])
+                species = row['어종'] or row.get('주어종') or '어종 확인 필요'
+                method_txt = (' · ' + row['낚시방식']) if row['낚시방식'] else ''
+                st.markdown(
+                    f'<div class="card-v2">'
+                    f'<div class="card-banner" style="background:{gradient}">'
+                    f'<span class="card-badge" style="background:{st_info["badge_bg"]}">{st_info["badge"]}</span>'
+                    f'<span class="card-boat-icon">🚤</span>'
+                    f'<span class="card-status-txt">{row["상태"]}</span>'
+                    f'</div>'
+                    f'<div class="rope-divider"></div>'
+                    f'<div class="card-body">'
+                    f'<div class="card-name">{row["선사명"]}</div>'
+                    f'<div class="card-sub">{species}{method_txt}</div>'
+                    f'<div class="card-loc">📍 {row["권역"]} · {row.get("도시","")} · {row["출항지"]}</div>'
+                    f'<div class="card-row">'
+                    f'<div class="price-tag">{row["가격"] or "가격 문의"}</div>'
+                    f'<div class="seat-tag">🪑 {row["남은자리"] or "-"}</div>'
+                    f'</div>'
+                    f'<div class="card-row" style="color:#7a8794;font-size:12px;margin-top:2px">'
+                    f'⏱ {row["출항시간"] or "시간 미정"} {("· 취소 " + row["취소인원"]) if row["취소인원"] else ""}'
+                    f'</div>'
+                    f'<a class="cta-btn" href="{row["예약링크"]}" target="_blank">예약 페이지 열기 →</a>'
+                    f'</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
 
 st.set_page_config(page_title="Fishing Seat Finder", page_icon="🎣", layout="wide")
@@ -591,6 +614,21 @@ st.markdown("""
   -webkit-background-clip:text;background-clip:text;color:transparent;}
 .brand-kr{font-size:14px;color:#64748b;font-weight:600;margin-top:-2px}
 .result-card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
+.card-v2{background:#ffffff;border-radius:18px;overflow:hidden;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,45,60,.08);border:1px solid #eef1f0}
+.card-banner{position:relative;height:88px;display:flex;align-items:center;justify-content:center}
+.card-boat-icon{font-size:38px;opacity:.9;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+.card-badge{position:absolute;top:10px;left:12px;color:white;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;letter-spacing:.3px}
+.card-status-txt{position:absolute;bottom:8px;right:12px;color:white;font-size:12px;font-weight:700;background:rgba(0,0,0,.22);padding:2px 8px;border-radius:8px}
+.rope-divider{height:6px;background:repeating-linear-gradient(-45deg,#dfe7e5 0 6px,#eef3f1 6px 12px)}
+.card-body{padding:14px 16px 16px}
+.card-name{font-size:18px;font-weight:800;color:#0b3b57}
+.card-sub{font-size:13.5px;color:#33474f;margin-top:2px}
+.card-loc{font-size:12.5px;color:#7a8794;margin-top:4px}
+.card-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.price-tag{font-size:17px;font-weight:800;color:#0b3b57}
+.seat-tag{font-size:13px;font-weight:700;color:#12977A;background:#e8f6f1;padding:3px 10px;border-radius:999px}
+.cta-btn{display:block;text-align:center;margin-top:12px;padding:9px 0;border-radius:10px;background:#0e7fa6;color:white !important;font-weight:700;font-size:13.5px;text-decoration:none}
+.cta-btn:hover{background:#0b3b57}
 .card-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
 .title{font-size:20px;font-weight:800}
 .sub{font-size:14px;color:#333;margin-top:2px}
@@ -607,6 +645,26 @@ st.markdown("""
 .env-label{font-size:13px;opacity:.9;font-weight:600;margin-bottom:6px}
 .env-value{font-size:26px;font-weight:900;line-height:1.15}
 .env-sub{font-size:12px;opacity:.85;margin-top:6px}
+
+@media (max-width: 680px) {
+  .brand-title{font-size:26px}
+  .brand-badge{width:42px;height:42px;font-size:20px}
+  .brand-kr{font-size:11px}
+  .env-wrap{gap:10px}
+  .env-card{min-width:calc(50% - 5px);padding:14px 14px;flex:0 0 calc(50% - 5px)}
+  .env-value{font-size:20px}
+  .env-label{font-size:11.5px}
+  .env-sub{font-size:11px}
+  .card-banner{height:72px}
+  .card-boat-icon{font-size:30px}
+  .card-name{font-size:16px}
+  .card-sub{font-size:12.5px}
+  .card-loc{font-size:11.5px}
+  .price-tag{font-size:15px}
+  .seat-tag{font-size:12px;padding:2px 8px}
+  .card-badge{font-size:10px;padding:2px 8px}
+  .card-status-txt{font-size:11px}
+}
 </style>
 """, unsafe_allow_html=True)
 
