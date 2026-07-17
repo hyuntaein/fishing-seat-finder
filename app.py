@@ -393,11 +393,17 @@ def render_grouped_cards(df):
                 """, unsafe_allow_html=True)
 
 
-st.set_page_config(page_title="낚시 빈자리 통합검색", page_icon="🎣", layout="wide")
+st.set_page_config(page_title="Fishing Seat Finder", page_icon="🎣", layout="wide")
 st.markdown("""
 <style>
 .main-title{font-size:34px;font-weight:900;margin-bottom:4px}
 .sub-title{color:#555;margin-bottom:18px}
+.brand-wrap{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.brand-badge{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#0ea5e9,#0369a1);font-size:26px;box-shadow:0 4px 12px rgba(14,165,233,.35)}
+.brand-title{font-size:36px;font-weight:900;letter-spacing:-0.5px;
+  background:linear-gradient(135deg,#0369a1,#0ea5e9 45%,#10b981);
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+.brand-kr{font-size:14px;color:#64748b;font-weight:600;margin-top:-2px}
 .result-card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 5px rgba(0,0,0,.06)}
 .card-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
 .title{font-size:20px;font-weight:800}
@@ -420,8 +426,21 @@ st.markdown("""
 sunsang_sites = load_json(SUNSANG_FILE, [])
 manual_sites = load_json(MANUAL_FILE, [])
 
-st.markdown('<div class="main-title">🎣 낚시 빈자리 통합검색 LIVE v2</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">어종과 낚시방식을 분리했습니다. 예: 참돔 = 어종, 타이라바 = 낚시방식.</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="brand-wrap">
+  <div class="brand-badge">🎣</div>
+  <div>
+    <div class="brand-title">Fishing Seat Finder</div>
+    <div class="brand-kr">낚시 빈자리 통합검색 LIVE · 어종은 어종끼리, 낚시방식은 방식끼리</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+st.markdown(
+    '<a href="https://github.com/hyuntaein/fishing-seat-finder" target="_blank" '
+    'style="font-size:12px;color:#94a3b8;text-decoration:none">github.com/hyuntaein/fishing-seat-finder ↗</a>',
+    unsafe_allow_html=True,
+)
+st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
 top1, top2 = st.columns([1, 1])
 with top1:
