@@ -68,24 +68,37 @@ def fetch_tide_events(city: str, target_iso: str):
     except Exception:
         return None
 
-    day_anchor_pat = re.compile(r"(\d{1,2})\([가-힣]\)\s+\d{1,2}\.\d{1,2}")
+    WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
+    target_wd = WEEKDAY_KR[target_date.weekday()]
+
+    day_anchor_pat = re.compile(r"(\d{1,2})\(([가-힣])\)\s+\d{1,2}\.\d{1,2}")
     anchors = list(day_anchor_pat.finditer(text))
+
+    # 1순위: 날짜 숫자 + 요일이 모두 일치하는 앵커. 못 찾으면 날짜 숫자만이라도 일치하는 첫 앵커.
     target_idx = None
     for i, m in enumerate(anchors):
-        if int(m.group(1)) == target_date.day:
+        if int(m.group(1)) == target_date.day and m.group(2) == target_wd:
             target_idx = i
             break
+    if target_idx is None:
+        for i, m in enumerate(anchors):
+            if int(m.group(1)) == target_date.day:
+                target_idx = i
+                break
     if target_idx is None:
         return None
 
     start = anchors[target_idx].end()
     end = anchors[target_idx + 1].start() if target_idx + 1 < len(anchors) else len(text)
+    # 안전장치: 하루치 블록은 보통 300자를 넘지 않는다. 경계 탐지가 어긋나 다음 날짜까지
+    # 딸려오는 것을 막기 위해 최대 길이를 제한한다.
+    end = min(end, start + 400)
     block = text[start:end]
 
     events = []
-    for tm in re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▲", block):
+    for tm in list(re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▲", block))[:2]:
         events.append({"type": "high", "time": tm.group(1), "height": int(tm.group(2))})
-    for tm in re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▼", block):
+    for tm in list(re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▼", block))[:2]:
         events.append({"type": "low", "time": tm.group(1), "height": int(tm.group(2))})
 
     if not events:
