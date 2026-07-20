@@ -496,12 +496,13 @@ def parse_sunsang_site(site: dict, target: date, people: int, fish_filter: str, 
             status, group, sort = "직접 확인 필요", "확인 필요", 80
             remain_text = ""
 
-        # 필터: 페이지에서 못 읽었을 때만 등록된 주어종으로 대체 판단, 읽었으면 그 값 기준
-        searchable = f"{species} {method}"
-        if fish_filter != "전체" and searchable.strip() and fish_filter not in searchable:
-            continue
-        if method_filter != "전체" and method and method_filter not in method:
-            continue
+        # 주어종/어종은 더 이상 검색 제외 기준으로 쓰지 않는다 (참고 정보로만 사용).
+        # 대신 어종/낚시방식이 검색 조건과 일치하면 정렬 우선순위를 앞으로 당긴다.
+        searchable = f"{species} {method} {main_species}"
+        if fish_filter != "전체" and fish_filter in searchable:
+            sort -= 3
+        if method_filter != "전체" and method_filter in searchable:
+            sort -= 2
 
         results.append({
             "선사명": ship_name, "주어종": main_species, "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
@@ -530,25 +531,30 @@ def check_manual_site(site: dict, target: date, fish_filter: str, method_filter:
             f"{target.month}월 {target.day}일", f"{target.month}월{target.day}일"
         ]
         has_date = any(k in text for k in date_keys)
-        has_fish = fish_filter == "전체" or fish_filter in text
-        has_method = method_filter == "전체" or method_filter in text
         has_booking = any(w in text for w in ["예약", "잔여", "남은자리", "바로예약", "예약가능"])
         has_full = any(w in text for w in ["마감", "만석", "예약완료"])
 
         if has_full:
             status, group, sort = "마감 키워드 있음", "마감", 60
-        elif has_date and has_fish and has_method and has_booking:
+        elif has_date and has_booking:
             status, group, sort = "예약 가능(키워드 기준, 직접 확인 권장)", "예약 가능", 20
-        elif has_booking and (fish_filter == "전체" or has_fish) and (method_filter == "전체" or has_method):
+        elif has_booking:
             status, group, sort = "예약 가능 추정(직접 확인 권장)", "예약 가능", 25
         else:
             status, group, sort = "직접 확인 필요", "확인 필요", 80
+
+        # 주어종/어종은 검색 제외 기준이 아니라 참고용. 일치하면 정렬만 앞으로 당긴다.
+        main_species = site.get("main_species", "")
+        if fish_filter != "전체" and (fish_filter in text or fish_filter in main_species):
+            sort -= 3
+        if method_filter != "전체" and method_filter in text:
+            sort -= 2
     except Exception:
         status, group, sort = "접속 오류/직접 확인 필요", "확인 필요", 90
 
     return {
         "선사명": site["name"], "주어종": site.get("main_species", ""), "권역": site.get("region", ""), "도시": site.get("city", ""), "출항지": site.get("port", ""),
-        "어종": "" if fish_filter == "전체" else fish_filter, "낚시방식": "" if method_filter == "전체" else method_filter,
+        "어종": site.get("main_species", ""), "낚시방식": "",
         "가격": "", "출항시간": "", "남은자리": "", "취소인원": "",
         "상태": status, "예약링크": site["url"], "API": "", "_group": group, "_sort": sort
     }
@@ -695,7 +701,7 @@ st.markdown("""
   <div class="brand-badge">🎣</div>
   <div>
     <div class="brand-title">Fishing Seat Finder</div>
-    <div class="brand-kr">MADE BY 인현태 · THANK YOU FOR IDEAS 영탁, 정환형, 정국형, 귀선형</div>
+    <div class="brand-kr">MADE BY 인현태 · THANK YOU FOR IDEAS 영탁, 정환형, 귀선형, 정국형</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -807,6 +813,7 @@ with left:
     people = st.number_input("인원", min_value=1, max_value=30, value=2)
     fish = st.selectbox("어종", FISH_OPTIONS)
     method = st.selectbox("낚시방식", METHOD_OPTIONS)
+    st.caption("💡 어종·방식은 결과를 제외하지 않아요. 일치하는 배가 위쪽에 먼저 보여요.")
     region = st.selectbox("권역", REGIONS)
 
     ports = ["전체"] + sorted({s.get("port", "") for s in sunsang_sites + manual_sites if s.get("port")})
@@ -939,6 +946,9 @@ with right:
             and (search_city == "전체" or not s.get("city") or s.get("city") == search_city)
             and (port == "전체" or not s.get("port") or s.get("port") == port)
         ]
+
+        st.caption(f"🔍 이번 조건에 해당하는 사이트: 선상24 {len(selected_sunsang)}개 · 일반 {len(selected_manual)}개"
+                   + ("" if include_manual else " (일반 사이트 포함 꺼짐)"))
 
         rows = []
         total = len(selected_sunsang) + len(selected_manual)
