@@ -15,7 +15,7 @@ SUNSANG_FILE = APP_DIR / "sunsang24_sites.json"
 MANUAL_FILE = APP_DIR / "manual_sites.json"
 LOG_FILE = APP_DIR / "fishing_logs.json"
 
-ANGLERS = ["인현태", "조정환", "한영탁", "최귀선", "김정국"]
+ANGLERS = ["인현태", "조정환", "한영탁", "최귀선", "김정국","손님"]
 
 HEADERS_JSON = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
