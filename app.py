@@ -13,6 +13,9 @@ from bs4 import BeautifulSoup
 APP_DIR = Path(__file__).parent
 SUNSANG_FILE = APP_DIR / "sunsang24_sites.json"
 MANUAL_FILE = APP_DIR / "manual_sites.json"
+LOG_FILE = APP_DIR / "fishing_logs.json"
+
+ANGLERS = ["인현태", "조정환", "한영탁", "최귀선", "김정국"]
 
 HEADERS_JSON = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -695,6 +698,7 @@ st.markdown("""
 
 sunsang_sites = load_json(SUNSANG_FILE, [])
 manual_sites = load_json(MANUAL_FILE, [])
+fishing_logs = load_json(LOG_FILE, [])
 
 st.markdown("""
 <div class="brand-wrap">
@@ -889,6 +893,33 @@ with left:
                 else:
                     st.warning(f"'{del_name}' 임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
 
+    st.divider()
+    with st.expander("🎣 출조 기록 남기기"):
+        log_date = st.date_input("출조일", value=date.today(), key="log_date")
+        log_ship = st.text_input("배 이름", placeholder="예: 아쿠아마린호", key="log_ship")
+        log_species = st.selectbox("어종", FISH_OPTIONS[1:], key="log_species")
+        log_anglers = st.multiselect("출조자", ANGLERS, key="log_anglers")
+        log_count = st.text_input("조황 (선택, 예: 참돔4)", key="log_count")
+        log_memo = st.text_area("메모", placeholder="자리, 물때, 특이사항 등", key="log_memo", height=100)
+        if st.button("기록 저장", key="log_save_btn"):
+            if log_ship and log_anglers:
+                fishing_logs.append({
+                    "date": log_date.strftime("%Y-%m-%d"),
+                    "ship": log_ship,
+                    "species": log_species,
+                    "anglers": log_anglers,
+                    "count": log_count,
+                    "memo": log_memo,
+                })
+                save_json(LOG_FILE, fishing_logs)
+                ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
+                if ok:
+                    st.success(f"기록했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                else:
+                    st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+            else:
+                st.warning("배 이름과 출조자는 최소 1명 입력하세요.")
+
 with right:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("선상24", f"{len(sunsang_sites)}개")
@@ -922,6 +953,23 @@ with right:
             )
         else:
             st.caption("등록된 사이트가 없습니다.")
+
+    with st.expander(f"🎣 출조 기록 보기 (총 {len(fishing_logs)}건, 어종별)"):
+        if fishing_logs:
+            log_df = pd.DataFrame(fishing_logs)
+            log_df["anglers_txt"] = log_df["anglers"].apply(lambda a: ", ".join(a) if isinstance(a, list) else str(a))
+            for species_name, g in log_df.groupby("species"):
+                g = g.sort_values("date", ascending=False)
+                st.markdown(f"**🐟 {species_name} ({len(g)}건)**")
+                st.dataframe(
+                    g[["date", "ship", "anglers_txt", "count", "memo"]].rename(
+                        columns={"date": "날짜", "ship": "배", "anglers_txt": "출조자", "count": "조황", "memo": "메모"}
+                    ),
+                    use_container_width=True, hide_index=True,
+                    height=38 * (len(g) + 1) + 3,
+                )
+        else:
+            st.caption("아직 기록된 출조 기록이 없어요. 왼쪽 '🎣 출조 기록 남기기'에서 추가해보세요.")
 
 
     if not search:
