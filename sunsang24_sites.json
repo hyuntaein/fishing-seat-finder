@@ -54,5 +54,13 @@
     "city": "군산",
     "port": "비응항",
     "base_url": "https://sharkho.sunsang24.com/ship/board"
+  },
+  {
+    "name": "군산 엘리스호",
+    "main_species": "",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://alice.sunsang24.com"
   }
 ]
