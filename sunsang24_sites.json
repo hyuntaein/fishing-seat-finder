@@ -46,5 +46,13 @@
     "city": "군산",
     "port": "비응항",
     "base_url": "https://stealth.sunsang24.com"
+  },
+  {
+    "name": "군산 샤크호",
+    "main_species": "",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://sharkho.sunsang24.com/ship/board"
   }
 ]
