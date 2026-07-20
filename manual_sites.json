@@ -102,5 +102,13 @@
     "city": "태안",
     "port": "신진항",
     "url": "https://www.blessho.com/"
+  },
+  {
+    "name": "팀바이트호",
+    "main_species": "",
+    "region": "충남",
+    "city": "태안",
+    "port": "마검포항",
+    "url": "http://teambite.kr/index.php?mid=bk"
   }
 ]
