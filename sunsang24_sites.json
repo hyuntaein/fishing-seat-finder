@@ -49,7 +49,7 @@
   },
   {
     "name": "군산 샤크호",
-    "main_species": "",
+    "main_species": "참돔,광어,문어,주꾸미,갑오징어,우럭",
     "region": "전북",
     "city": "군산",
     "port": "비응항",
@@ -57,7 +57,7 @@
   },
   {
     "name": "군산 엘리스호",
-    "main_species": "",
+    "main_species": "참돔,광어,문어,주꾸미,갑오징어,우럭",
     "region": "전북",
     "city": "군산",
     "port": "비응항",
