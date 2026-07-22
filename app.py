@@ -15,7 +15,7 @@ SUNSANG_FILE = APP_DIR / "sunsang24_sites.json"
 MANUAL_FILE = APP_DIR / "manual_sites.json"
 LOG_FILE = APP_DIR / "fishing_logs.json"
 
-ANGLERS = ["인현태", "조정환", "한영탁", "최귀선", "김정국","손님"]
+ANGLERS = ["인현태", "조정환", "한영탁", "최귀선", "김정국"]
 
 HEADERS_JSON = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -961,13 +961,18 @@ with right:
             for species_name, g in log_df.groupby("species"):
                 g = g.sort_values("date", ascending=False)
                 st.markdown(f"**🐟 {species_name} ({len(g)}건)**")
-                st.dataframe(
-                    g[["date", "ship", "anglers_txt", "count", "memo"]].rename(
-                        columns={"date": "날짜", "ship": "배", "anglers_txt": "출조자", "count": "조황", "memo": "메모"}
-                    ),
-                    use_container_width=True, hide_index=True,
-                    height=38 * (len(g) + 1) + 3,
-                )
+                for _, r in g.iterrows():
+                    memo_txt = (r["memo"] or "").replace("\n", "<br>")
+                    st.markdown(
+                        f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
+                        f"padding:10px 14px;margin-bottom:8px'>"
+                        f"<div style='font-weight:700;color:#0b3b57'>{r['date']} · {r['ship']}"
+                        f"{(' · ' + r['count']) if r['count'] else ''}</div>"
+                        f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {r['anglers_txt']}</div>"
+                        + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
         else:
             st.caption("아직 기록된 출조 기록이 없어요. 왼쪽 '🎣 출조 기록 남기기'에서 추가해보세요.")
 
