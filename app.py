@@ -920,6 +920,56 @@ with left:
             else:
                 st.warning("배 이름과 출조자는 최소 1명 입력하세요.")
 
+    with st.expander("✏️ 출조 기록 수정/삭제"):
+        if not fishing_logs:
+            st.caption("아직 기록이 없어요.")
+        else:
+            options = ["선택 안함"] + [
+                f"{i}: {lg['date']} · {lg['ship']} · {lg['species']}" for i, lg in enumerate(fishing_logs)
+            ]
+            picked = st.selectbox("수정할 기록 선택", options, key="log_edit_pick")
+            if picked != "선택 안함":
+                idx = int(picked.split(":")[0])
+                target_log = fishing_logs[idx]
+
+                e_date = st.date_input(
+                    "출조일", value=datetime.strptime(target_log["date"], "%Y-%m-%d").date(), key="edit_log_date"
+                )
+                e_ship = st.text_input("배 이름", value=target_log["ship"], key="edit_log_ship")
+                e_species = st.selectbox(
+                    "어종", FISH_OPTIONS[1:],
+                    index=FISH_OPTIONS[1:].index(target_log["species"]) if target_log["species"] in FISH_OPTIONS[1:] else 0,
+                    key="edit_log_species",
+                )
+                e_anglers = st.multiselect("출조자", ANGLERS, default=target_log.get("anglers", []), key="edit_log_anglers")
+                e_count = st.text_input("조황", value=target_log.get("count", ""), key="edit_log_count")
+                e_memo = st.text_area("메모", value=target_log.get("memo", ""), key="edit_log_memo", height=100)
+
+                c_save, c_del = st.columns(2)
+                if c_save.button("수정 저장", key="edit_log_save_btn", use_container_width=True):
+                    fishing_logs[idx] = {
+                        "date": e_date.strftime("%Y-%m-%d"),
+                        "ship": e_ship,
+                        "species": e_species,
+                        "anglers": e_anglers,
+                        "count": e_count,
+                        "memo": e_memo,
+                    }
+                    save_json(LOG_FILE, fishing_logs)
+                    ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
+                    if ok:
+                        st.success(f"수정했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                    else:
+                        st.warning(f"임시 수정은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                if c_del.button("이 기록 삭제", key="edit_log_del_btn", use_container_width=True):
+                    fishing_logs.pop(idx)
+                    save_json(LOG_FILE, fishing_logs)
+                    ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
+                    if ok:
+                        st.success(f"삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                    else:
+                        st.warning(f"임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+
 with right:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("선상24", f"{len(sunsang_sites)}개")
@@ -954,25 +1004,23 @@ with right:
         else:
             st.caption("등록된 사이트가 없습니다.")
 
-    with st.expander(f"🎣 출조 기록 보기 (총 {len(fishing_logs)}건, 어종별)"):
+    with st.expander(f"🎣 출조 기록 보기 (총 {len(fishing_logs)}건, 최신순)"):
         if fishing_logs:
             log_df = pd.DataFrame(fishing_logs)
             log_df["anglers_txt"] = log_df["anglers"].apply(lambda a: ", ".join(a) if isinstance(a, list) else str(a))
-            for species_name, g in log_df.groupby("species"):
-                g = g.sort_values("date", ascending=False)
-                st.markdown(f"**🐟 {species_name} ({len(g)}건)**")
-                for _, r in g.iterrows():
-                    memo_txt = (r["memo"] or "").replace("\n", "<br>")
-                    st.markdown(
-                        f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
-                        f"padding:10px 14px;margin-bottom:8px'>"
-                        f"<div style='font-weight:700;color:#0b3b57'>{r['date']} · {r['ship']}"
-                        f"{(' · ' + r['count']) if r['count'] else ''}</div>"
-                        f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {r['anglers_txt']}</div>"
-                        + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
-                        + "</div>",
-                        unsafe_allow_html=True,
-                    )
+            log_df = log_df.sort_values("date", ascending=False)
+            for _, r in log_df.iterrows():
+                memo_txt = (r["memo"] or "").replace("\n", "<br>")
+                st.markdown(
+                    f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
+                    f"padding:10px 14px;margin-bottom:8px'>"
+                    f"<div style='font-weight:700;color:#0b3b57'>{r['date']} · {r['ship']} · 🐟{r['species']}"
+                    f"{(' · ' + r['count']) if r['count'] else ''}</div>"
+                    f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {r['anglers_txt']}</div>"
+                    + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
         else:
             st.caption("아직 기록된 출조 기록이 없어요. 왼쪽 '🎣 출조 기록 남기기'에서 추가해보세요.")
 
