@@ -1024,6 +1024,38 @@ with right:
         else:
             st.caption("아직 기록된 출조 기록이 없어요. 왼쪽 '🎣 출조 기록 남기기'에서 추가해보세요.")
 
+    with st.expander("📊 출조 기록 통계"):
+        if not fishing_logs:
+            st.caption("아직 기록된 출조 기록이 없어요.")
+        else:
+            log_df = pd.DataFrame(fishing_logs)
+            stat_cols = st.columns(3)
+
+            with stat_cols[0]:
+                st.markdown("**🧑 출조자별 횟수**")
+                angler_series = log_df["anglers"].explode()
+                angler_counts = angler_series.value_counts()
+                st.dataframe(
+                    angler_counts.rename_axis("출조자").reset_index(name="횟수"),
+                    use_container_width=True, hide_index=True,
+                )
+
+            with stat_cols[1]:
+                st.markdown("**🐟 어종별 횟수**")
+                species_counts = log_df["species"].value_counts()
+                st.dataframe(
+                    species_counts.rename_axis("어종").reset_index(name="횟수"),
+                    use_container_width=True, hide_index=True,
+                )
+
+            with stat_cols[2]:
+                st.markdown("**🚤 선사별 횟수**")
+                ship_counts = log_df["ship"].value_counts()
+                st.dataframe(
+                    ship_counts.rename_axis("배").reset_index(name="횟수"),
+                    use_container_width=True, hide_index=True,
+                )
+
 
     if not search:
         st.info("왼쪽에서 조건을 고른 뒤 실시간 조회를 누르세요.")
