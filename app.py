@@ -305,6 +305,18 @@ def fetch_weather(lat: float, lon: float, target_iso: str):
     return result
 
 
+def parse_catch_text(text: str):
+    """'참돔4,광어1' 같은 텍스트를 [{'species':'참돔','count':4}, ...] 로 파싱한다."""
+    if not text:
+        return []
+    pairs = re.findall(r"([가-힣A-Za-z]+)\s*(\d+)", text)
+    return [{"species": sp.strip(), "count": int(ct)} for sp, ct in pairs if sp.strip()]
+
+
+def format_catch_text(catches):
+    return ",".join(f"{c['species']}{c['count']}" for c in catches if c.get("count"))
+
+
 def get_log_catches(log: dict):
     """log 항목에서 사람별 (어종,마릿수) 목록을 가져온다.
     새 형식(catches 필드)이 있으면 그대로, 옛 형식(species/count 공용)이면 변환해서 반환."""
@@ -916,12 +928,10 @@ with left:
 
         log_catches = []
         if log_anglers:
-            st.markdown("**사람별 어종·마릿수**")
+            st.markdown("**사람별 조황** (예: `참돔4,광어1`)")
             for a in log_anglers:
-                cc1, cc2 = st.columns([1.3, 1])
-                sp = cc1.selectbox(f"{a} - 어종", FISH_OPTIONS[1:], key=f"log_species_{a}")
-                ct = cc2.number_input(f"{a} - 마릿수", min_value=0, max_value=100, value=0, step=1, key=f"log_count_{a}")
-                log_catches.append({"angler": a, "species": sp, "count": int(ct)})
+                txt = st.text_input(f"{a}", placeholder="참돔4,광어1", key=f"log_catch_{a}")
+                log_catches.extend([{"angler": a, **c} for c in parse_catch_text(txt)])
 
         log_memo = st.text_area("메모", placeholder="자리, 물때, 특이사항 등", key="log_memo", height=100)
         if st.button("기록 저장", key="log_save_btn"):
@@ -986,7 +996,11 @@ with right:
             for orig_idx in order:
                 log = fishing_logs[orig_idx]
                 catches = get_log_catches(log)
-                catch_txt = ", ".join(f"{c['angler']} {c['species']}{c['count']}" for c in catches if c.get("count"))
+                by_angler = {}
+                for c in catches:
+                    if c.get("count"):
+                        by_angler.setdefault(c["angler"], []).append(f"{c['species']}{c['count']}")
+                catch_txt = ", ".join(f"{a} {'/'.join(sps)}" for a, sps in by_angler.items())
                 memo_txt = (log.get("memo") or "").replace("\n", "<br>")
 
                 card_col, btn_col = st.columns([9, 1])
@@ -1019,25 +1033,18 @@ with right:
                             "출조자", ANGLERS, default=target_log.get("anglers", []), key=f"edit_log_anglers_{orig_idx}"
                         )
 
-                        existing_catches = {c["angler"]: c for c in get_log_catches(target_log)}
+                        existing_by_angler = {}
+                        for c in get_log_catches(target_log):
+                            existing_by_angler.setdefault(c["angler"], []).append(c)
                         e_catches = []
                         if e_anglers:
-                            st.markdown("**사람별 어종·마릿수**")
+                            st.markdown("**사람별 조황** (예: `참돔4,광어1`)")
                             for a in e_anglers:
-                                prev = existing_catches.get(a, {})
-                                prev_species = prev.get("species") if prev.get("species") in FISH_OPTIONS[1:] else FISH_OPTIONS[1]
-                                cc1, cc2 = st.columns([1.3, 1])
-                                sp = cc1.selectbox(
-                                    f"{a} - 어종", FISH_OPTIONS[1:],
-                                    index=FISH_OPTIONS[1:].index(prev_species),
-                                    key=f"edit_log_species_{orig_idx}_{a}",
+                                prev_txt = format_catch_text(existing_by_angler.get(a, []))
+                                txt = st.text_input(
+                                    f"{a}", value=prev_txt, placeholder="참돔4,광어1", key=f"edit_log_catch_{orig_idx}_{a}"
                                 )
-                                ct = cc2.number_input(
-                                    f"{a} - 마릿수", min_value=0, max_value=100,
-                                    value=int(prev.get("count", 0) or 0),
-                                    step=1, key=f"edit_log_count_{orig_idx}_{a}",
-                                )
-                                e_catches.append({"angler": a, "species": sp, "count": int(ct)})
+                                e_catches.extend([{"angler": a, **c} for c in parse_catch_text(txt)])
 
                         e_memo = st.text_area(
                             "메모", value=target_log.get("memo", ""), key=f"edit_log_memo_{orig_idx}", height=100
