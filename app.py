@@ -1129,12 +1129,6 @@ with right:
 
     if not search:
         st.info("왼쪽에서 조건을 고른 뒤 실시간 조회를 누르세요.")
-        st.markdown("""
-        **LIVE v2 변경점**
-        - 타이라바를 어종이 아닌 낚시방식으로 분리
-        - 어종 필터와 낚시방식 필터 분리
-        - 선사별 묶어보기 추가
-        """)
     else:
         selected_sunsang = [
             s for s in sunsang_sites
