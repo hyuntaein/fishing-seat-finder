@@ -15,7 +15,7 @@ SUNSANG_FILE = APP_DIR / "sunsang24_sites.json"
 MANUAL_FILE = APP_DIR / "manual_sites.json"
 LOG_FILE = APP_DIR / "fishing_logs.json"
 
-ANGLERS = ["인현태", "조정환", "한영탁", "최귀선", "김정국","손님"]
+ANGLERS = ["인현태", "조정환", "한영탁", "김정국","최귀선","손님"]
 
 HEADERS_JSON = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -920,56 +920,6 @@ with left:
             else:
                 st.warning("배 이름과 출조자는 최소 1명 입력하세요.")
 
-    with st.expander("✏️ 출조 기록 수정/삭제"):
-        if not fishing_logs:
-            st.caption("아직 기록이 없어요.")
-        else:
-            options = ["선택 안함"] + [
-                f"{i}: {lg['date']} · {lg['ship']} · {lg['species']}" for i, lg in enumerate(fishing_logs)
-            ]
-            picked = st.selectbox("수정할 기록 선택", options, key="log_edit_pick")
-            if picked != "선택 안함":
-                idx = int(picked.split(":")[0])
-                target_log = fishing_logs[idx]
-
-                e_date = st.date_input(
-                    "출조일", value=datetime.strptime(target_log["date"], "%Y-%m-%d").date(), key="edit_log_date"
-                )
-                e_ship = st.text_input("배 이름", value=target_log["ship"], key="edit_log_ship")
-                e_species = st.selectbox(
-                    "어종", FISH_OPTIONS[1:],
-                    index=FISH_OPTIONS[1:].index(target_log["species"]) if target_log["species"] in FISH_OPTIONS[1:] else 0,
-                    key="edit_log_species",
-                )
-                e_anglers = st.multiselect("출조자", ANGLERS, default=target_log.get("anglers", []), key="edit_log_anglers")
-                e_count = st.text_input("조황", value=target_log.get("count", ""), key="edit_log_count")
-                e_memo = st.text_area("메모", value=target_log.get("memo", ""), key="edit_log_memo", height=100)
-
-                c_save, c_del = st.columns(2)
-                if c_save.button("수정 저장", key="edit_log_save_btn", use_container_width=True):
-                    fishing_logs[idx] = {
-                        "date": e_date.strftime("%Y-%m-%d"),
-                        "ship": e_ship,
-                        "species": e_species,
-                        "anglers": e_anglers,
-                        "count": e_count,
-                        "memo": e_memo,
-                    }
-                    save_json(LOG_FILE, fishing_logs)
-                    ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
-                    if ok:
-                        st.success(f"수정했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
-                    else:
-                        st.warning(f"임시 수정은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-                if c_del.button("이 기록 삭제", key="edit_log_del_btn", use_container_width=True):
-                    fishing_logs.pop(idx)
-                    save_json(LOG_FILE, fishing_logs)
-                    ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
-                    if ok:
-                        st.success(f"삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
-                    else:
-                        st.warning(f"임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-
 with right:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("선상24", f"{len(sunsang_sites)}개")
@@ -1009,18 +959,79 @@ with right:
             log_df = pd.DataFrame(fishing_logs)
             log_df["anglers_txt"] = log_df["anglers"].apply(lambda a: ", ".join(a) if isinstance(a, list) else str(a))
             log_df = log_df.sort_values("date", ascending=False)
-            for _, r in log_df.iterrows():
+
+            if "editing_log_idx" not in st.session_state:
+                st.session_state.editing_log_idx = None
+
+            for orig_idx, r in log_df.iterrows():
                 memo_txt = (r["memo"] or "").replace("\n", "<br>")
-                st.markdown(
-                    f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
-                    f"padding:10px 14px;margin-bottom:8px'>"
-                    f"<div style='font-weight:700;color:#0b3b57'>{r['date']} · {r['ship']} · 🐟{r['species']}"
-                    f"{(' · ' + r['count']) if r['count'] else ''}</div>"
-                    f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {r['anglers_txt']}</div>"
-                    + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
-                    + "</div>",
-                    unsafe_allow_html=True,
-                )
+                card_col, btn_col = st.columns([9, 1])
+                with card_col:
+                    st.markdown(
+                        f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
+                        f"padding:10px 14px;margin-bottom:8px'>"
+                        f"<div style='font-weight:700;color:#0b3b57'>{r['date']} · {r['ship']} · 🐟{r['species']}"
+                        f"{(' · ' + r['count']) if r['count'] else ''}</div>"
+                        f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {r['anglers_txt']}</div>"
+                        + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+                with btn_col:
+                    if st.button("✏️", key=f"edit_log_btn_{orig_idx}", help="이 기록 수정"):
+                        st.session_state.editing_log_idx = (
+                            None if st.session_state.editing_log_idx == orig_idx else orig_idx
+                        )
+
+                if st.session_state.editing_log_idx == orig_idx:
+                    target_log = fishing_logs[orig_idx]
+                    with st.container(border=True):
+                        e_date = st.date_input(
+                            "출조일", value=datetime.strptime(target_log["date"], "%Y-%m-%d").date(),
+                            key=f"edit_log_date_{orig_idx}",
+                        )
+                        e_ship = st.text_input("배 이름", value=target_log["ship"], key=f"edit_log_ship_{orig_idx}")
+                        e_species = st.selectbox(
+                            "어종", FISH_OPTIONS[1:],
+                            index=FISH_OPTIONS[1:].index(target_log["species"]) if target_log["species"] in FISH_OPTIONS[1:] else 0,
+                            key=f"edit_log_species_{orig_idx}",
+                        )
+                        e_anglers = st.multiselect(
+                            "출조자", ANGLERS, default=target_log.get("anglers", []), key=f"edit_log_anglers_{orig_idx}"
+                        )
+                        e_count = st.text_input("조황", value=target_log.get("count", ""), key=f"edit_log_count_{orig_idx}")
+                        e_memo = st.text_area(
+                            "메모", value=target_log.get("memo", ""), key=f"edit_log_memo_{orig_idx}", height=100
+                        )
+
+                        c_save, c_del, c_cancel = st.columns(3)
+                        if c_save.button("저장", key=f"edit_log_save_{orig_idx}", use_container_width=True):
+                            fishing_logs[orig_idx] = {
+                                "date": e_date.strftime("%Y-%m-%d"),
+                                "ship": e_ship,
+                                "species": e_species,
+                                "anglers": e_anglers,
+                                "count": e_count,
+                                "memo": e_memo,
+                            }
+                            save_json(LOG_FILE, fishing_logs)
+                            ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
+                            st.session_state.editing_log_idx = None
+                            if ok:
+                                st.success(f"수정했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                            else:
+                                st.warning(f"임시 수정은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                        if c_del.button("삭제", key=f"edit_log_del_{orig_idx}", use_container_width=True):
+                            fishing_logs.pop(orig_idx)
+                            save_json(LOG_FILE, fishing_logs)
+                            ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
+                            st.session_state.editing_log_idx = None
+                            if ok:
+                                st.success(f"삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                            else:
+                                st.warning(f"임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                        if c_cancel.button("취소", key=f"edit_log_cancel_{orig_idx}", use_container_width=True):
+                            st.session_state.editing_log_idx = None
         else:
             st.caption("아직 기록된 출조 기록이 없어요. 왼쪽 '🎣 출조 기록 남기기'에서 추가해보세요.")
 
@@ -1029,16 +1040,19 @@ with right:
             st.caption("아직 기록된 출조 기록이 없어요.")
         else:
             log_df = pd.DataFrame(fishing_logs)
-            stat_cols = st.columns(3)
+            stat_cols = st.columns([2, 1, 1])
 
             with stat_cols[0]:
-                st.markdown("**🧑 출조자별 횟수**")
-                angler_series = log_df["anglers"].explode()
-                angler_counts = angler_series.value_counts()
-                st.dataframe(
-                    angler_counts.rename_axis("출조자").reset_index(name="횟수"),
-                    use_container_width=True, hide_index=True,
-                )
+                st.markdown("**🧑 출조자별 어종 횟수**")
+                exploded = log_df[["species", "anglers"]].explode("anglers").rename(columns={"anglers": "출조자"})
+                pivot = exploded.groupby(["출조자", "species"]).size().reset_index(name="횟수")
+                summary_rows = []
+                for angler, g in pivot.groupby("출조자"):
+                    g = g.sort_values("횟수", ascending=False)
+                    detail = ", ".join(f"{row['species']}{row['횟수']}" for _, row in g.iterrows())
+                    summary_rows.append({"출조자": angler, "총횟수": int(g["횟수"].sum()), "어종별": detail})
+                summary_df = pd.DataFrame(summary_rows).sort_values("총횟수", ascending=False)
+                st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
             with stat_cols[1]:
                 st.markdown("**🐟 어종별 횟수**")
