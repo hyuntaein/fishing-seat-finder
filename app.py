@@ -1086,28 +1086,37 @@ with right:
         else:
             all_catches = []
             ship_list = []
+            angler_trip_list = []
             for log in fishing_logs:
                 ship_list.append(log.get("ship", ""))
+                for a in log.get("anglers", []):
+                    angler_trip_list.append(a)
                 for c in get_log_catches(log):
                     all_catches.append({"출조자": c["angler"], "species": c["species"], "count": c.get("count", 0) or 0})
+
+            trip_counts = pd.Series(angler_trip_list).value_counts()
 
             stat_cols = st.columns([2, 1])
 
             with stat_cols[0]:
-                st.markdown("**🧑 출조자별 마릿수 (어종별)**")
-                if all_catches:
-                    cdf = pd.DataFrame(all_catches)
-                    pivot = cdf.groupby(["출조자", "species"])["count"].sum().reset_index(name="마릿수")
-                    pivot = pivot[pivot["마릿수"] > 0]
+                st.markdown("**🧑 출조자별 출조횟수 (어종별 마릿수)**")
+                if angler_trip_list:
+                    if all_catches:
+                        cdf = pd.DataFrame(all_catches)
+                        pivot = cdf.groupby(["출조자", "species"])["count"].sum().reset_index(name="마릿수")
+                        pivot = pivot[pivot["마릿수"] > 0]
+                    else:
+                        pivot = pd.DataFrame(columns=["출조자", "species", "마릿수"])
+
                     summary_rows = []
-                    for angler, g in pivot.groupby("출조자"):
-                        g = g.sort_values("마릿수", ascending=False)
+                    for angler in trip_counts.index:
+                        g = pivot[pivot["출조자"] == angler].sort_values("마릿수", ascending=False)
                         detail = ", ".join(f"{row['species']}{int(row['마릿수'])}" for _, row in g.iterrows())
-                        summary_rows.append({"출조자": angler, "총마릿수": int(g["마릿수"].sum()), "어종별": detail or "-"})
-                    summary_df = pd.DataFrame(summary_rows).sort_values("총마릿수", ascending=False)
+                        summary_rows.append({"출조자": angler, "출조횟수": int(trip_counts[angler]), "어종별": detail or "-"})
+                    summary_df = pd.DataFrame(summary_rows).sort_values("출조횟수", ascending=False)
                     st.dataframe(summary_df, use_container_width=True, hide_index=True)
                 else:
-                    st.caption("아직 마릿수가 입력된 기록이 없어요.")
+                    st.caption("아직 출조자가 기록된 기록이 없어요.")
 
             with stat_cols[1]:
                 st.markdown("**🚤 선사별 출조 횟수**")
