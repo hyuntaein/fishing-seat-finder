@@ -305,6 +305,21 @@ def fetch_weather(lat: float, lon: float, target_iso: str):
     return result
 
 
+def get_log_catches(log: dict):
+    """log 항목에서 사람별 (어종,마릿수) 목록을 가져온다.
+    새 형식(catches 필드)이 있으면 그대로, 옛 형식(species/count 공용)이면 변환해서 반환."""
+    if log.get("catches"):
+        return log["catches"]
+    anglers = log.get("anglers", [])
+    species = log.get("species", "")
+    count = log.get("count", 0)
+    try:
+        count = int(count)
+    except (TypeError, ValueError):
+        count = 0
+    return [{"angler": a, "species": species, "count": count} for a in anglers]
+
+
 def rate_sail_condition(windspeed_kmh, wave_m):
     """풍속(km/h)과 파고(m)로 출조 적합도를 판정한다."""
     if windspeed_kmh is None or wave_m is None:
@@ -897,19 +912,25 @@ with left:
     with st.expander("🎣 출조 기록 남기기"):
         log_date = st.date_input("출조일", value=date.today(), key="log_date")
         log_ship = st.text_input("배 이름", placeholder="예: 아쿠아마린호", key="log_ship")
-        log_species = st.selectbox("어종", FISH_OPTIONS[1:], key="log_species")
         log_anglers = st.multiselect("출조자", ANGLERS, key="log_anglers")
-        log_count = st.number_input("마릿수", min_value=0, max_value=100, value=0, step=1, key="log_count")
-        st.caption("💡 이 마릿수는 위에서 고른 어종 1종 기준이에요. 한 번에 여러 어종을 잡았으면 기록을 나눠서 남겨주세요.")
+
+        log_catches = []
+        if log_anglers:
+            st.markdown("**사람별 어종·마릿수**")
+            for a in log_anglers:
+                cc1, cc2 = st.columns([1.3, 1])
+                sp = cc1.selectbox(f"{a} - 어종", FISH_OPTIONS[1:], key=f"log_species_{a}")
+                ct = cc2.number_input(f"{a} - 마릿수", min_value=0, max_value=100, value=0, step=1, key=f"log_count_{a}")
+                log_catches.append({"angler": a, "species": sp, "count": int(ct)})
+
         log_memo = st.text_area("메모", placeholder="자리, 물때, 특이사항 등", key="log_memo", height=100)
         if st.button("기록 저장", key="log_save_btn"):
             if log_ship and log_anglers:
                 fishing_logs.append({
                     "date": log_date.strftime("%Y-%m-%d"),
                     "ship": log_ship,
-                    "species": log_species,
                     "anglers": log_anglers,
-                    "count": int(log_count),
+                    "catches": log_catches,
                     "memo": log_memo,
                 })
                 save_json(LOG_FILE, fishing_logs)
@@ -957,25 +978,25 @@ with right:
 
     with st.expander(f"🎣 출조 기록 보기 (총 {len(fishing_logs)}건, 최신순)"):
         if fishing_logs:
-            log_df = pd.DataFrame(fishing_logs)
-            log_df["anglers_txt"] = log_df["anglers"].apply(lambda a: ", ".join(a) if isinstance(a, list) else str(a))
-            log_df["count_num"] = pd.to_numeric(log_df["count"], errors="coerce")
-            log_df = log_df.sort_values("date", ascending=False)
+            order = sorted(range(len(fishing_logs)), key=lambda i: fishing_logs[i]["date"], reverse=True)
 
             if "editing_log_idx" not in st.session_state:
                 st.session_state.editing_log_idx = None
 
-            for orig_idx, r in log_df.iterrows():
-                memo_txt = (r["memo"] or "").replace("\n", "<br>")
-                count_txt = f"{int(r['count_num'])}마리" if pd.notna(r["count_num"]) and r["count_num"] > 0 else (str(r["count"]) if r["count"] else "")
+            for orig_idx in order:
+                log = fishing_logs[orig_idx]
+                catches = get_log_catches(log)
+                catch_txt = ", ".join(f"{c['angler']} {c['species']}{c['count']}" for c in catches if c.get("count"))
+                memo_txt = (log.get("memo") or "").replace("\n", "<br>")
+
                 card_col, btn_col = st.columns([9, 1])
                 with card_col:
                     st.markdown(
                         f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
                         f"padding:10px 14px;margin-bottom:8px'>"
-                        f"<div style='font-weight:700;color:#0b3b57'>{r['date']} · {r['ship']} · 🐟{r['species']}"
-                        f"{(' · ' + count_txt) if count_txt else ''}</div>"
-                        f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {r['anglers_txt']}</div>"
+                        f"<div style='font-weight:700;color:#0b3b57'>{log['date']} · {log['ship']}</div>"
+                        + (f"<div style='font-size:13px;color:#12977A;font-weight:700;margin-top:3px'>🐟 {catch_txt}</div>" if catch_txt else "")
+                        + f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {', '.join(log.get('anglers', []))}</div>"
                         + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
                         + "</div>",
                         unsafe_allow_html=True,
@@ -994,19 +1015,30 @@ with right:
                             key=f"edit_log_date_{orig_idx}",
                         )
                         e_ship = st.text_input("배 이름", value=target_log["ship"], key=f"edit_log_ship_{orig_idx}")
-                        e_species = st.selectbox(
-                            "어종", FISH_OPTIONS[1:],
-                            index=FISH_OPTIONS[1:].index(target_log["species"]) if target_log["species"] in FISH_OPTIONS[1:] else 0,
-                            key=f"edit_log_species_{orig_idx}",
-                        )
                         e_anglers = st.multiselect(
                             "출조자", ANGLERS, default=target_log.get("anglers", []), key=f"edit_log_anglers_{orig_idx}"
                         )
-                        e_count = st.number_input(
-                            "마릿수", min_value=0, max_value=100,
-                            value=(int(target_log.get("count")) if str(target_log.get("count") or 0).isdigit() else 0),
-                            step=1, key=f"edit_log_count_{orig_idx}",
-                        )
+
+                        existing_catches = {c["angler"]: c for c in get_log_catches(target_log)}
+                        e_catches = []
+                        if e_anglers:
+                            st.markdown("**사람별 어종·마릿수**")
+                            for a in e_anglers:
+                                prev = existing_catches.get(a, {})
+                                prev_species = prev.get("species") if prev.get("species") in FISH_OPTIONS[1:] else FISH_OPTIONS[1]
+                                cc1, cc2 = st.columns([1.3, 1])
+                                sp = cc1.selectbox(
+                                    f"{a} - 어종", FISH_OPTIONS[1:],
+                                    index=FISH_OPTIONS[1:].index(prev_species),
+                                    key=f"edit_log_species_{orig_idx}_{a}",
+                                )
+                                ct = cc2.number_input(
+                                    f"{a} - 마릿수", min_value=0, max_value=100,
+                                    value=int(prev.get("count", 0) or 0),
+                                    step=1, key=f"edit_log_count_{orig_idx}_{a}",
+                                )
+                                e_catches.append({"angler": a, "species": sp, "count": int(ct)})
+
                         e_memo = st.text_area(
                             "메모", value=target_log.get("memo", ""), key=f"edit_log_memo_{orig_idx}", height=100
                         )
@@ -1016,9 +1048,8 @@ with right:
                             fishing_logs[orig_idx] = {
                                 "date": e_date.strftime("%Y-%m-%d"),
                                 "ship": e_ship,
-                                "species": e_species,
                                 "anglers": e_anglers,
-                                "count": int(e_count),
+                                "catches": e_catches,
                                 "memo": e_memo,
                             }
                             save_json(LOG_FILE, fishing_logs)
@@ -1046,26 +1077,34 @@ with right:
         if not fishing_logs:
             st.caption("아직 기록된 출조 기록이 없어요.")
         else:
-            log_df = pd.DataFrame(fishing_logs)
-            log_df["count"] = pd.to_numeric(log_df["count"], errors="coerce").fillna(0).astype(int)
+            all_catches = []
+            ship_list = []
+            for log in fishing_logs:
+                ship_list.append(log.get("ship", ""))
+                for c in get_log_catches(log):
+                    all_catches.append({"출조자": c["angler"], "species": c["species"], "count": c.get("count", 0) or 0})
+
             stat_cols = st.columns([2, 1])
 
             with stat_cols[0]:
                 st.markdown("**🧑 출조자별 마릿수 (어종별)**")
-                exploded = log_df[["species", "count", "anglers"]].explode("anglers").rename(columns={"anglers": "출조자"})
-                pivot = exploded.groupby(["출조자", "species"])["count"].sum().reset_index(name="마릿수")
-                pivot = pivot[pivot["마릿수"] > 0]
-                summary_rows = []
-                for angler, g in pivot.groupby("출조자"):
-                    g = g.sort_values("마릿수", ascending=False)
-                    detail = ", ".join(f"{row['species']}{int(row['마릿수'])}" for _, row in g.iterrows())
-                    summary_rows.append({"출조자": angler, "총마릿수": int(g["마릿수"].sum()), "어종별": detail or "-"})
-                summary_df = pd.DataFrame(summary_rows).sort_values("총마릿수", ascending=False)
-                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                if all_catches:
+                    cdf = pd.DataFrame(all_catches)
+                    pivot = cdf.groupby(["출조자", "species"])["count"].sum().reset_index(name="마릿수")
+                    pivot = pivot[pivot["마릿수"] > 0]
+                    summary_rows = []
+                    for angler, g in pivot.groupby("출조자"):
+                        g = g.sort_values("마릿수", ascending=False)
+                        detail = ", ".join(f"{row['species']}{int(row['마릿수'])}" for _, row in g.iterrows())
+                        summary_rows.append({"출조자": angler, "총마릿수": int(g["마릿수"].sum()), "어종별": detail or "-"})
+                    summary_df = pd.DataFrame(summary_rows).sort_values("총마릿수", ascending=False)
+                    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                else:
+                    st.caption("아직 마릿수가 입력된 기록이 없어요.")
 
             with stat_cols[1]:
                 st.markdown("**🚤 선사별 출조 횟수**")
-                ship_counts = log_df["ship"].value_counts()
+                ship_counts = pd.Series(ship_list).value_counts()
                 st.dataframe(
                     ship_counts.rename_axis("배").reset_index(name="횟수"),
                     use_container_width=True, hide_index=True,
