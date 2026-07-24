@@ -56,7 +56,8 @@ CITY_TIDE_IDS = {
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_tide_events(city: str, target_iso: str):
-    """badatime.com에서 해당 날짜의 만조/간조 시각(HH:MM)과 조위(cm)를 가져온다."""
+    """badatime.com에서 해당 날짜의 만조/간조 시각(HH:MM), 조위(cm), 실제 물때/조류세기(%)를 가져온다.
+    반환값: {"events": [...], "mulddae": "3물", "strength_pct": 16} 또는 None"""
     city_id = CITY_TIDE_IDS.get(city)
     if not city_id:
         return None
@@ -103,11 +104,18 @@ def fetch_tide_events(city: str, target_iso: str):
         events.append({"type": "high", "time": tm.group(1), "height": int(tm.group(2))})
     for tm in list(re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▼", block))[:2]:
         events.append({"type": "low", "time": tm.group(1), "height": int(tm.group(2))})
-
-    if not events:
-        return None
     events.sort(key=lambda e: e["time"])
-    return events
+
+    # 실제 물때 이름(예: 3물, 조금, 무시)과 조류세기(%)를 페이지에서 그대로 읽는다.
+    mulddae_label, strength_pct = None, None
+    mm = re.search(r"(\d{1,2}\s*물|조금|무시)\s*(\d{1,3})\s*%", block)
+    if mm:
+        mulddae_label = mm.group(1).replace(" ", "")
+        strength_pct = int(mm.group(2))
+
+    if not events and not mulddae_label:
+        return None
+    return {"events": events, "mulddae": mulddae_label, "strength_pct": strength_pct}
 
 
 def build_tide_wave_svg(events):
@@ -698,6 +706,7 @@ st.markdown("""
 .env-label{font-size:13px;opacity:.9;font-weight:600;margin-bottom:6px}
 .env-value{font-size:26px;font-weight:900;line-height:1.15}
 .env-sub{font-size:12px;opacity:.85;margin-top:6px}
+.env-src{font-size:10.5px;opacity:.65;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.25)}
 .tide-row{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:700;margin-top:4px}
 
 @media (max-width: 680px) {
@@ -709,6 +718,7 @@ st.markdown("""
   .env-value{font-size:16px;line-height:1.1}
   .env-label{font-size:10px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .env-sub{font-size:9.5px;margin-top:2px;line-height:1.3}
+  .env-src{font-size:8.5px;margin-top:5px;padding-top:4px}
   .tide-row{font-size:11.5px;margin-top:2px}
   .card-banner{height:72px}
   .card-boat-icon{font-size:30px}
@@ -750,10 +760,20 @@ with top2:
     _all_cities = ["전체"] + sorted({s.get("city", "") for s in sunsang_sites + manual_sites if s.get("city")})
     city = st.selectbox("도시 (물때·날씨 기준)", _all_cities)
 
-mulddae, mulddae_idx = estimate_mulddae(target)
-stars = mulddae_strength_percent(mulddae_idx)
 weather_city = city if city != "전체" else "군산"
 coords = CITY_COORDS.get(weather_city)
+
+tide_data = fetch_tide_events(weather_city, target.strftime("%Y-%m-%d"))
+tide_events = tide_data["events"] if tide_data else None
+
+if tide_data and tide_data.get("mulddae"):
+    mulddae = tide_data["mulddae"]
+    stars = tide_data["strength_pct"] if tide_data.get("strength_pct") is not None else "-"
+    mulddae_is_real = True
+else:
+    mulddae, mulddae_idx = estimate_mulddae(target)
+    stars = mulddae_strength_percent(mulddae_idx)
+    mulddae_is_real = False
 
 weather_html = f"<div class='env-value'>예보 범위 밖</div><div class='env-sub'>보통 16일 이내만 제공</div>"
 sea_html = f"<div class='env-value'>-</div><div class='env-sub'>조회 실패/범위 밖</div>"
@@ -786,8 +806,6 @@ if coords:
     if sea is not None:
         sea_html = f"<div class='env-value'>{sea}℃</div><div class='env-sub'>{weather_city} 인근 표층수온</div>"
 
-tide_events = fetch_tide_events(weather_city, target.strftime("%Y-%m-%d"))
-
 if tide_events:
     rows_html = ""
     for e in tide_events:
@@ -807,28 +825,34 @@ st.markdown(f"""
   <div class="env-card tide">
     <div class="env-label">🌊 {target.strftime('%m/%d')} 물때</div>
     <div class="env-value">{mulddae}</div>
-    <div class="env-sub">참고용 추정치</div>
+    <div class="env-sub">{"참고용 추정치" if not mulddae_is_real else ""}</div>
+    <div class="env-src">출처: {"국립해양조사원(badatime.com)" if mulddae_is_real else "자체 계산(음력 근사치)"}</div>
   </div>
   <div class="env-card strength">
     <div class="env-label">🌀 조류세기</div>
     <div class="env-value" style="font-size:26px">{stars}%</div>
     <div class="env-sub">사리 근처일수록 강함</div>
+    <div class="env-src">출처: {"국립해양조사원(badatime.com)" if mulddae_is_real else "자체 계산(음력 근사치)"}</div>
   </div>
   <div class="env-card wave">
     <div class="env-label">⏱️ {weather_city} 만조·간조</div>
     {tide_card_body}
+    <div class="env-src">출처: 국립해양조사원(badatime.com)</div>
   </div>
   <div class="env-card weather">
     <div class="env-label">{weather_city} 날씨</div>
     {weather_html}
+    <div class="env-src">출처: Open-Meteo</div>
   </div>
   <div class="env-card sea">
     <div class="env-label">🌡️ {weather_city} 수온</div>
     {sea_html}
+    <div class="env-src">출처: Open-Meteo Marine</div>
   </div>
   <div class="env-card sail">
     <div class="env-label">⛵ 출조 적합도</div>
     {sail_html}
+    <div class="env-src">출처: Open-Meteo Marine 기반 자체 판정</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
