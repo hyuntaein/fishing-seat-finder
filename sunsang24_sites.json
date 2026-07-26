@@ -40,14 +40,6 @@
     "base_url": "https://lukina.sunsang24.com"
   },
   {
-    "name": "스텔스호",
-    "main_species": "참돔",
-    "region": "전북",
-    "city": "군산",
-    "port": "비응항",
-    "base_url": "https://stealth.sunsang24.com"
-  },
-  {
     "name": "군산 샤크호",
     "main_species": "광어",
     "region": "전북",
