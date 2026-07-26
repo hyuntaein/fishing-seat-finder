@@ -948,6 +948,7 @@ with left:
     with st.expander("🎣 출조 기록 남기기"):
         log_date = st.date_input("출조일", value=date.today(), key="log_date")
         log_ship = st.text_input("배 이름", placeholder="예: 아쿠아마린호", key="log_ship")
+        log_port = st.text_input("출항지(항)", placeholder="예: 홍원항", key="log_port")
         log_anglers = st.multiselect("출조자", ANGLERS, key="log_anglers")
 
         log_catches = []
@@ -963,6 +964,7 @@ with left:
                 fishing_logs.append({
                     "date": log_date.strftime("%Y-%m-%d"),
                     "ship": log_ship,
+                    "port": log_port,
                     "anglers": log_anglers,
                     "catches": log_catches,
                     "memo": log_memo,
@@ -1032,7 +1034,8 @@ with right:
                     st.markdown(
                         f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
                         f"padding:10px 14px;margin-bottom:8px'>"
-                        f"<div style='font-weight:700;color:#0b3b57'>{log['date']} · {log['ship']}</div>"
+                        f"<div style='font-weight:700;color:#0b3b57'>{log['date']} · {log['ship']}"
+                        f"{(' (' + log['port'] + ')') if log.get('port') else ''}</div>"
                         + (f"<div style='font-size:13px;color:#12977A;font-weight:700;margin-top:3px'>🐟 {catch_txt}</div>" if catch_txt else "")
                         + f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {', '.join(log.get('anglers', []))}</div>"
                         + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
@@ -1053,6 +1056,9 @@ with right:
                             key=f"edit_log_date_{orig_idx}",
                         )
                         e_ship = st.text_input("배 이름", value=target_log["ship"], key=f"edit_log_ship_{orig_idx}")
+                        e_port = st.text_input(
+                            "출항지(항)", value=target_log.get("port", ""), key=f"edit_log_port_{orig_idx}"
+                        )
                         e_anglers = st.multiselect(
                             "출조자", ANGLERS, default=target_log.get("anglers", []), key=f"edit_log_anglers_{orig_idx}"
                         )
@@ -1079,6 +1085,7 @@ with right:
                             fishing_logs[orig_idx] = {
                                 "date": e_date.strftime("%Y-%m-%d"),
                                 "ship": e_ship,
+                                "port": e_port,
                                 "anglers": e_anglers,
                                 "catches": e_catches,
                                 "memo": e_memo,
