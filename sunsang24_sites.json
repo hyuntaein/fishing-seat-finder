@@ -54,5 +54,13 @@
     "city": "군산",
     "port": "비응항",
     "base_url": "https://alice.sunsang24.com"
+  },
+  {
+    "name": "마이웨이호",
+    "main_species": "광어,갑오징어",
+    "region": "인천·경기",
+    "city": "영흥도",
+    "port": "",
+    "base_url": "https://myway.sunsang24.com"
   }
 ]
