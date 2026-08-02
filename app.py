@@ -1,3 +1,4 @@
+
 import json
 import math
 import re
@@ -14,6 +15,7 @@ APP_DIR = Path(__file__).parent
 SUNSANG_FILE = APP_DIR / "sunsang24_sites.json"
 MANUAL_FILE = APP_DIR / "manual_sites.json"
 LOG_FILE = APP_DIR / "fishing_logs.json"
+TRASH_FILE = APP_DIR / "deleted_sites.json"
 
 ANGLERS = ["인현태", "조정환", "한영탁", "김정국", "최귀선", "손님"]
 
@@ -874,6 +876,7 @@ st.markdown("""
 sunsang_sites = load_json(SUNSANG_FILE, [])
 manual_sites = load_json(MANUAL_FILE, [])
 fishing_logs = load_json(LOG_FILE, [])
+deleted_sites = load_json(TRASH_FILE, [])
 
 st.markdown("""
 <div class="brand-wrap">
@@ -1076,19 +1079,70 @@ with left:
         del_name = st.selectbox("삭제할 선사 선택", ["선택 안함"] + all_names, key="del_name")
         if st.button("삭제", key="del_btn"):
             if del_name != "선택 안함":
-                before_s = len(sunsang_sites)
+                removed = None
+                site_type = None
+                for s in sunsang_sites:
+                    if s["name"] == del_name:
+                        removed, site_type = s, "sunsang24"
+                        break
+                if removed is None:
+                    for s in manual_sites:
+                        if s["name"] == del_name:
+                            removed, site_type = s, "manual"
+                            break
+
                 sunsang_sites[:] = [s for s in sunsang_sites if s["name"] != del_name]
-                if len(sunsang_sites) != before_s:
-                    save_json(SUNSANG_FILE, sunsang_sites)
-                    ok, msg = commit_to_github("sunsang24_sites.json", sunsang_sites)
+                manual_sites[:] = [s for s in manual_sites if s["name"] != del_name]
+                save_json(SUNSANG_FILE, sunsang_sites)
+                save_json(MANUAL_FILE, manual_sites)
+                ok1, msg1 = commit_to_github("sunsang24_sites.json", sunsang_sites)
+                ok2, msg2 = commit_to_github("manual_sites.json", manual_sites)
+
+                if removed:
+                    trash_entry = dict(removed)
+                    trash_entry["_type"] = site_type
+                    trash_entry["_deleted_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    deleted_sites.append(trash_entry)
+                    save_json(TRASH_FILE, deleted_sites)
+                    ok3, msg3 = commit_to_github("deleted_sites.json", deleted_sites)
                 else:
-                    manual_sites[:] = [s for s in manual_sites if s["name"] != del_name]
-                    save_json(MANUAL_FILE, manual_sites)
-                    ok, msg = commit_to_github("manual_sites.json", manual_sites)
-                if ok:
-                    st.success(f"'{del_name}' 삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                    ok3 = True
+
+                if ok1 and ok2 and ok3:
+                    st.success(f"'{del_name}' 삭제했습니다(휴지통으로 이동). 새로고침(F5) 하면 반영됩니다.")
                 else:
-                    st.warning(f"'{del_name}' 임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                    st.warning("임시 삭제는 됐지만 GitHub 자동 저장 일부가 실패했어요. 새로고침 후 다시 확인해주세요.")
+
+    with st.expander(f"🗑️ 휴지통 (삭제된 사이트, {len(deleted_sites)}개)"):
+        if not deleted_sites:
+            st.caption("삭제된 사이트가 없어요.")
+        else:
+            for i, trashed in enumerate(reversed(deleted_sites)):
+                real_idx = len(deleted_sites) - 1 - i
+                type_label = "선상24" if trashed.get("_type") == "sunsang24" else "일반"
+                tcol, bcol = st.columns([4, 1])
+                with tcol:
+                    st.markdown(
+                        f"**{trashed['name']}** ({type_label}) · 삭제일: {trashed.get('_deleted_at', '-')}"
+                    )
+                with bcol:
+                    if st.button("복원", key=f"restore_btn_{real_idx}", use_container_width=True):
+                        restored = {k: v for k, v in trashed.items() if not k.startswith("_")}
+                        if trashed.get("_type") == "sunsang24":
+                            sunsang_sites.append(restored)
+                            save_json(SUNSANG_FILE, sunsang_sites)
+                            ok, msg = commit_to_github("sunsang24_sites.json", sunsang_sites)
+                        else:
+                            manual_sites.append(restored)
+                            save_json(MANUAL_FILE, manual_sites)
+                            ok, msg = commit_to_github("manual_sites.json", manual_sites)
+                        deleted_sites.pop(real_idx)
+                        save_json(TRASH_FILE, deleted_sites)
+                        commit_to_github("deleted_sites.json", deleted_sites)
+                        if ok:
+                            st.success(f"'{trashed['name']}' 복원했습니다. 새로고침(F5) 하면 반영됩니다.")
+                        else:
+                            st.warning(f"임시 복원은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
 
     st.divider()
     with st.expander("🎣 출조 기록 남기기"):
