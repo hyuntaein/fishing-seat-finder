@@ -70,5 +70,13 @@
     "city": "군산",
     "port": "비응항",
     "base_url": "https://ddonggga.sunsang24.com/ship/board"
+  },
+  {
+    "name": "스텔스호",
+    "main_species": "참돔",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://stealth.sunsang24.com"
   }
 ]
