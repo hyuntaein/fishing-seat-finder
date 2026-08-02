@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "name": "스텔스호",
+    "main_species": "참돔",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://stealth.sunsang24.com",
+    "_type": "sunsang24",
+    "_deleted_at": "2026-08-02 08:56"
+  }
+]
