@@ -62,5 +62,13 @@
     "city": "영흥도",
     "port": "",
     "base_url": "https://myway.sunsang24.com"
+  },
+  {
+    "name": "똥까호",
+    "main_species": "광어,삼치",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://ddonggga.sunsang24.com/ship/board"
   }
 ]
