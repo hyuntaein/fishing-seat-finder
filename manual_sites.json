@@ -134,5 +134,13 @@
     "city": "태안",
     "port": "천리포항",
     "url": "http://www.teamskyfishing.com/"
+  },
+  {
+    "name": "청광호",
+    "main_species": "광어",
+    "region": "충남",
+    "city": "태안",
+    "port": "영목항",
+    "url": "http://www.chungkwangho.net/index.php?mid=bk&year=2026&month=08&day=04&mode=list&PA_N_UID=1588#list"
   }
 ]
