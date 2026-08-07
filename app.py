@@ -1365,6 +1365,9 @@ with right:
 
             with stat_cols[1]:
                 st.markdown("**🚤 선사별 출조 횟수**")
+                site_url_map = {s["name"]: s.get("base_url", "") for s in sunsang_sites}
+                site_url_map.update({s["name"]: s.get("url", "") for s in manual_sites})
+
                 ship_df = pd.DataFrame(ship_dates)
                 ship_summary = (
                     ship_df.groupby("배")
@@ -1372,7 +1375,12 @@ with right:
                     .reset_index()
                     .sort_values(["횟수", "최근출조일"], ascending=[False, False])
                 )
-                st.dataframe(ship_summary, use_container_width=True, hide_index=True)
+                ship_summary["링크"] = ship_summary["배"].map(lambda n: site_url_map.get(n, ""))
+                st.dataframe(
+                    ship_summary, use_container_width=True, hide_index=True,
+                    column_config={"링크": st.column_config.LinkColumn("링크", display_text="바로가기 ↗")},
+                )
+                st.caption("💡 등록된 사이트와 배 이름이 일치할 때만 링크가 걸려요.")
 
     with st.expander("📖 어종 도감"):
         st.caption("참고용 정보이며, 실제 조황·생태는 해마다 다를 수 있어요. 금어기는 2026.1.1 기준 수산자원관리법 시행령 기준이며, 지역·어업방식에 따라 예외가 있을 수 있으니 출조 전 최신 고시를 꼭 확인하세요.")
