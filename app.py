@@ -1329,9 +1329,11 @@ with right:
         else:
             all_catches = []
             ship_list = []
+            ship_dates = []
             angler_trip_list = []
             for log in fishing_logs:
                 ship_list.append(log.get("ship", ""))
+                ship_dates.append({"배": log.get("ship", ""), "date": log.get("date", "")})
                 for a in log.get("anglers", []):
                     angler_trip_list.append(a)
                 for c in get_log_catches(log):
@@ -1363,11 +1365,14 @@ with right:
 
             with stat_cols[1]:
                 st.markdown("**🚤 선사별 출조 횟수**")
-                ship_counts = pd.Series(ship_list).value_counts()
-                st.dataframe(
-                    ship_counts.rename_axis("배").reset_index(name="횟수"),
-                    use_container_width=True, hide_index=True,
+                ship_df = pd.DataFrame(ship_dates)
+                ship_summary = (
+                    ship_df.groupby("배")
+                    .agg(횟수=("date", "count"), 최근출조일=("date", "max"))
+                    .reset_index()
+                    .sort_values(["횟수", "최근출조일"], ascending=[False, False])
                 )
+                st.dataframe(ship_summary, use_container_width=True, hide_index=True)
 
     with st.expander("📖 어종 도감"):
         st.caption("참고용 정보이며, 실제 조황·생태는 해마다 다를 수 있어요. 금어기는 2026.1.1 기준 수산자원관리법 시행령 기준이며, 지역·어업방식에 따라 예외가 있을 수 있으니 출조 전 최신 고시를 꼭 확인하세요.")
