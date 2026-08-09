@@ -70,5 +70,13 @@
     "city": "군산",
     "port": "비응항",
     "base_url": "https://ddonggga.sunsang24.com/ship/board"
+  },
+  {
+    "name": "진주만호",
+    "main_species": "광어",
+    "region": "충남",
+    "city": "태안",
+    "port": "백사장항",
+    "base_url": "https://marineho.sunsang24.com/ship/schedule_fleet"
   }
 ]
