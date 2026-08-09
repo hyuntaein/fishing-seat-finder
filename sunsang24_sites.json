@@ -78,5 +78,13 @@
     "city": "태안",
     "port": "백사장항",
     "base_url": "https://marineho.sunsang24.com/ship/schedule_fleet"
+  },
+  {
+    "name": "뉴항구호",
+    "main_species": "광어",
+    "region": "충남",
+    "city": "태안",
+    "port": "삼길포항",
+    "base_url": "https://daebak.sunsang24.com"
   }
 ]
