@@ -1332,8 +1332,12 @@ with right:
             ship_dates = []
             angler_trip_list = []
             for log in fishing_logs:
-                ship_list.append(log.get("ship", ""))
-                ship_dates.append({"배": log.get("ship", ""), "date": log.get("date", "")})
+                is_excluded = log.get("exclude_from_catch_stats")
+                if log.get("ship", "") != "?":
+                    ship_list.append(log.get("ship", ""))
+                    ship_dates.append({"배": log.get("ship", ""), "date": log.get("date", "")})
+                if is_excluded:
+                    continue
                 for a in log.get("anglers", []):
                     angler_trip_list.append(a)
                 for c in get_log_catches(log):
@@ -1381,6 +1385,34 @@ with right:
                     column_config={"링크": st.column_config.LinkColumn("링크", display_text="바로가기 ↗")},
                 )
                 st.caption("💡 등록된 사이트와 배 이름이 일치할 때만 링크가 걸려요.")
+
+                ship_pick_options = ["선택 안함"] + [
+                    f"{row['배']} ({row['횟수']}회)" for _, row in ship_summary.iterrows()
+                ]
+                ship_picked = st.selectbox("🔍 배를 선택하면 그 배의 출조 기록을 볼 수 있어요", ship_pick_options, key="stat_ship_pick")
+                if ship_picked != "선택 안함":
+                    picked_name = ship_picked.rsplit(" (", 1)[0]
+                    matched_logs = [lg for lg in fishing_logs if lg.get("ship", "") == picked_name]
+                    matched_logs.sort(key=lambda lg: lg.get("date", ""), reverse=True)
+                    st.markdown(f"**'{picked_name}' 출조 기록 ({len(matched_logs)}건)**")
+                    for lg in matched_logs:
+                        catches = get_log_catches(lg)
+                        catch_by_angler = {}
+                        for c in catches:
+                            if c.get("count"):
+                                catch_by_angler.setdefault(c["angler"], []).append(f"{c['species']}{c['count']}")
+                        catch_txt = ", ".join(f"{a} {'/'.join(sps)}" for a, sps in catch_by_angler.items())
+                        memo_txt = (lg.get("memo") or "").replace("\n", "<br>")
+                        st.markdown(
+                            f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
+                            f"padding:10px 14px;margin-bottom:8px'>"
+                            f"<div style='font-weight:700;color:#0b3b57'>{lg['date']} · {lg.get('port','')}</div>"
+                            + (f"<div style='font-size:13px;color:#12977A;font-weight:700;margin-top:3px'>🐟 {catch_txt}</div>" if catch_txt else "")
+                            + f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {', '.join(lg.get('anglers', []))}</div>"
+                            + (f"<div style='font-size:13px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
+                            + "</div>",
+                            unsafe_allow_html=True,
+                        )
 
     with st.expander("📖 어종 도감"):
         st.caption("참고용 정보이며, 실제 조황·생태는 해마다 다를 수 있어요. 금어기는 2026.1.1 기준 수산자원관리법 시행령 기준이며, 지역·어업방식에 따라 예외가 있을 수 있으니 출조 전 최신 고시를 꼭 확인하세요.")
