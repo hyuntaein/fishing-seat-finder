@@ -1291,6 +1291,11 @@ with right:
                         e_memo = st.text_area(
                             "메모", value=target_log.get("memo", ""), key=f"edit_log_memo_{orig_idx}", height=100
                         )
+                        e_exclude = st.checkbox(
+                            "마릿수 통계에서 제외 (배 통계에는 포함)",
+                            value=target_log.get("exclude_from_catch_stats", False),
+                            key=f"edit_log_exclude_{orig_idx}",
+                        )
 
                         c_save, c_del, c_cancel = st.columns(3)
                         if c_save.button("저장", key=f"edit_log_save_{orig_idx}", use_container_width=True):
@@ -1301,6 +1306,7 @@ with right:
                                 "anglers": e_anglers,
                                 "catches": e_catches,
                                 "memo": e_memo,
+                                "exclude_from_catch_stats": e_exclude,
                             }
                             save_json(LOG_FILE, fishing_logs)
                             ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
