@@ -1263,8 +1263,14 @@ with right:
                 if st.session_state.editing_log_idx == orig_idx:
                     target_log = fishing_logs[orig_idx]
                     with st.container(border=True):
+                        raw_date = (target_log.get("date") or "").strip()[:10]
+                        try:
+                            parsed_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+                        except (ValueError, TypeError):
+                            parsed_date = date.today()
+                            st.warning(f"이 기록의 날짜('{target_log.get('date')}')가 YYYY-MM-DD 형식이 아니라서 오늘 날짜로 임시 표시했어요. 정확한 날짜로 다시 골라서 저장해주세요.")
                         e_date = st.date_input(
-                            "출조일", value=datetime.strptime(target_log["date"], "%Y-%m-%d").date(),
+                            "출조일", value=parsed_date,
                             key=f"edit_log_date_{orig_idx}",
                         )
                         e_ship = st.text_input("배 이름", value=target_log["ship"], key=f"edit_log_ship_{orig_idx}")
@@ -1370,6 +1376,35 @@ with right:
                         summary_rows.append({"출조자": angler, "출조횟수": int(trip_counts[angler]), "어종별": detail or "-"})
                     summary_df = pd.DataFrame(summary_rows).sort_values("출조횟수", ascending=False)
                     st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+                    angler_pick_options = ["선택 안함"] + [
+                        f"{row['출조자']} ({row['출조횟수']}회)" for _, row in summary_df.iterrows()
+                    ]
+                    angler_picked = st.selectbox("🔍 출조자를 선택하면 그분의 출조 기록을 볼 수 있어요", angler_pick_options, key="stat_angler_pick")
+                    if angler_picked != "선택 안함":
+                        picked_angler = angler_picked.rsplit(" (", 1)[0]
+                        matched_logs = [lg for lg in fishing_logs if picked_angler in lg.get("anglers", [])]
+                        matched_logs.sort(key=lambda lg: lg.get("date", ""), reverse=True)
+                        st.markdown(f"**'{picked_angler}' 출조 기록 ({len(matched_logs)}건)**")
+                        for lg in matched_logs:
+                            catches = get_log_catches(lg)
+                            catch_by_angler = {}
+                            for c in catches:
+                                if c.get("count"):
+                                    catch_by_angler.setdefault(c["angler"], []).append(f"{c['species']}{c['count']}")
+                            catch_txt = ", ".join(f"{a} {'/'.join(sps)}" for a, sps in catch_by_angler.items())
+                            memo_txt = (lg.get("memo") or "").replace("\n", "<br>")
+                            st.markdown(
+                                f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
+                                f"padding:10px 14px;margin-bottom:8px'>"
+                                f"<div style='font-weight:700;color:#0b3b57'>{lg['date']} · {lg.get('ship','')}"
+                                f"{(' (' + lg['port'] + ')') if lg.get('port') else ''}</div>"
+                                + (f"<div style='font-size:13px;color:#12977A;font-weight:700;margin-top:3px'>🐟 {catch_txt}</div>" if catch_txt else "")
+                                + f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {', '.join(lg.get('anglers', []))}</div>"
+                                + (f"<div style='font-size:13px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
+                                + "</div>",
+                                unsafe_allow_html=True,
+                            )
                 else:
                     st.caption("아직 출조자가 기록된 기록이 없어요.")
 
