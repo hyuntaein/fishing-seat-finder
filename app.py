@@ -492,6 +492,26 @@ def get_log_catches(log: dict):
     return [{"angler": a, "species": species, "count": count} for a in anglers]
 
 
+def get_september_special_dates(today: date):
+    """매년 9월 1일 + 9월 매주 토요일 목록을 반환한다.
+    올해 9월이 이미 지났으면 내년 9월 기준으로 계산한다."""
+    year = today.year
+    if today > date(year, 9, 30):
+        year += 1
+
+    dates = [date(year, 9, 1)]
+    d = date(year, 9, 1)
+    while d.month == 9:
+        if d.weekday() == 5:  # 토요일
+            dates.append(d)
+        d += timedelta(days=1)
+
+    # 중복 제거 + 과거(오늘 이전) 날짜는 제외, 정렬
+    dates = sorted(set(dates))
+    dates = [d for d in dates if d >= today]
+    return dates
+
+
 def rate_sail_condition(windspeed_kmh, wave_m):
     """풍속(km/h)과 파고(m)로 출조 적합도를 판정한다."""
     if windspeed_kmh is None or wave_m is None:
@@ -1009,6 +1029,51 @@ st.markdown(f"""
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+with st.expander(f"🦑 9월 특일(1일·매주 토요일) 주꾸미·갑오징어 배 현황 — 앱 열 때 자동 조회", expanded=True):
+    special_dates = get_september_special_dates(date.today())
+    if not special_dates:
+        st.caption("올해 9월 특일이 이미 다 지났어요.")
+    else:
+        target_sites = [
+            s for s in sunsang_sites + manual_sites
+            if "주꾸미" in s.get("main_species", "") or "갑오징어" in s.get("main_species", "")
+        ]
+        if not target_sites:
+            st.caption("등록된 사이트 중 주어종이 주꾸미/갑오징어인 배가 없어요. 사이트 등록시 '주어종'에 적어두면 여기서 자동으로 잡혀요.")
+        else:
+            special_rows = []
+            for sd in special_dates:
+                for site in target_sites:
+                    is_sunsang = "base_url" in site
+                    try:
+                        if is_sunsang:
+                            results = parse_sunsang_site(site, sd, 2, "전체", "전체")
+                            for r in results:
+                                special_rows.append({
+                                    "날짜": f"{sd.strftime('%m/%d')}({['월','화','수','목','금','토','일'][sd.weekday()]})",
+                                    "배": r["선사명"], "주어종": site.get("main_species", ""),
+                                    "상태": r["상태"], "예약링크": r["예약링크"],
+                                })
+                        else:
+                            r = check_manual_site(site, sd, "전체", "전체")
+                            special_rows.append({
+                                "날짜": f"{sd.strftime('%m/%d')}({['월','화','수','목','금','토','일'][sd.weekday()]})",
+                                "배": r["선사명"], "주어종": site.get("main_species", ""),
+                                "상태": r["상태"], "예약링크": r["예약링크"],
+                            })
+                    except Exception:
+                        continue
+
+            if special_rows:
+                special_df = pd.DataFrame(special_rows)
+                st.dataframe(
+                    special_df, use_container_width=True, hide_index=True,
+                    column_config={"예약링크": st.column_config.LinkColumn("예약링크", display_text="바로가기 ↗")},
+                )
+                st.caption(f"조회 대상일: {', '.join(d.strftime('%m/%d') for d in special_dates)} · 주어종에 '주꾸미' 또는 '갑오징어'가 포함된 등록 사이트 기준")
+            else:
+                st.caption("조회 결과가 없어요.")
 
 left, right = st.columns([1, 3.2], gap="large")
 
