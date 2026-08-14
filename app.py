@@ -1030,7 +1030,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-with st.expander(f"🦑 9월 특일(1일·매주 토요일) 주꾸미·갑오징어 배 현황 — 앱 열 때 자동 조회", expanded=True):
+with st.expander("🦑 9월 특일(1일·매주 토요일) 주꾸미·갑오징어 배 현황", expanded=False):
     special_dates = get_september_special_dates(date.today())
     if not special_dates:
         st.caption("올해 9월 특일이 이미 다 지났어요.")
@@ -1039,12 +1039,20 @@ with st.expander(f"🦑 9월 특일(1일·매주 토요일) 주꾸미·갑오징
             s for s in sunsang_sites + manual_sites
             if "주꾸미" in s.get("main_species", "") or "갑오징어" in s.get("main_species", "")
         ]
+        st.caption(f"조회 대상일: {', '.join(d.strftime('%m/%d') for d in special_dates)} · 주어종에 '주꾸미' 또는 '갑오징어'가 포함된 등록 사이트({len(target_sites)}개) 기준")
+
+        special_search = st.button("🔎 9월 특일 조회하기", key="special_search_btn")
+
         if not target_sites:
-            st.caption("등록된 사이트 중 주어종이 주꾸미/갑오징어인 배가 없어요. 사이트 등록시 '주어종'에 적어두면 여기서 자동으로 잡혀요.")
-        else:
+            st.caption("등록된 사이트 중 주어종이 주꾸미/갑오징어인 배가 없어요. 사이트 등록시 '주어종'에 적어두면 여기서 잡혀요.")
+        elif special_search:
             special_rows = []
+            progress = st.progress(0)
+            total_steps = len(special_dates) * len(target_sites)
+            step = 0
             for sd in special_dates:
                 for site in target_sites:
+                    step += 1
                     is_sunsang = "base_url" in site
                     try:
                         if is_sunsang:
@@ -1063,7 +1071,9 @@ with st.expander(f"🦑 9월 특일(1일·매주 토요일) 주꾸미·갑오징
                                 "상태": r["상태"], "예약링크": r["예약링크"],
                             })
                     except Exception:
-                        continue
+                        pass
+                    progress.progress(step / max(total_steps, 1))
+            progress.empty()
 
             if special_rows:
                 special_df = pd.DataFrame(special_rows)
@@ -1071,9 +1081,10 @@ with st.expander(f"🦑 9월 특일(1일·매주 토요일) 주꾸미·갑오징
                     special_df, use_container_width=True, hide_index=True,
                     column_config={"예약링크": st.column_config.LinkColumn("예약링크", display_text="바로가기 ↗")},
                 )
-                st.caption(f"조회 대상일: {', '.join(d.strftime('%m/%d') for d in special_dates)} · 주어종에 '주꾸미' 또는 '갑오징어'가 포함된 등록 사이트 기준")
             else:
                 st.caption("조회 결과가 없어요.")
+        else:
+            st.info("버튼을 눌러야 조회가 시작돼요 (앱 여는 속도를 위해 자동 조회는 꺼두었어요).")
 
 left, right = st.columns([1, 3.2], gap="large")
 
