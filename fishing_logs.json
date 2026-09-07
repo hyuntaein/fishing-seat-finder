@@ -1101,16 +1101,6 @@
     ],
     "catches": [
       {
-        "angler": "인현태",
-        "species": "주꾸미",
-        "count": 10
-      },
-      {
-        "angler": "최귀선",
-        "species": "주꾸미",
-        "count": 30
-      },
-      {
         "angler": "최귀선",
         "species": "갑",
         "count": 3
