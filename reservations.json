@@ -1,0 +1,13 @@
+[
+  {"date": "2026-09-01", "ship": "아시아호", "port": "군산 비응항", "time": "", "anglers": ["인현태","최귀선"], "payment": "입금", "memo": "", "account": "", "amount": 0, "depositor": ""},
+  {"date": "2026-09-06", "ship": "부남호", "port": "태안 당암포구", "time": "5시-16시", "anglers": ["인현태","한영탁","최귀선"], "payment": "입금", "memo": "", "account": "", "amount": 0, "depositor": ""},
+  {"date": "2026-09-12", "ship": "뉴미라클호", "port": "군산 비응항", "time": "6시-15시", "anglers": ["인현태","한영탁","최귀선","조정환","김정국"], "payment": "입금", "memo": "260820 김정국추가", "account": "", "amount": 0, "depositor": ""},
+  {"date": "2026-09-18", "ship": "후크스타호", "port": "군산 야미도항", "time": "5시-16시", "anglers": ["인현태","최귀선"], "payment": "입금0910", "memo": "물세기33%", "account": "수협 45362047149", "amount": 200000, "depositor": "구오만"},
+  {"date": "2026-09-19", "ship": "부남호", "port": "태안 당암포구", "time": "5시-16시", "anglers": ["인현태","한영탁","최귀선","조정환"], "payment": "입금", "memo": "물세기14%", "account": "", "amount": 0, "depositor": ""},
+  {"date": "2026-09-26", "ship": "드래곤호", "port": "서천 홍원항", "time": "", "anglers": ["인현태","한영탁","최귀선"], "payment": "입금", "memo": "물세기76%", "account": "", "amount": 0, "depositor": ""},
+  {"date": "2026-10-03", "ship": "제뉴어리호", "port": "부안 격포항", "time": "", "anglers": ["인현태","한영탁","최귀선","조정환"], "payment": "입금0910", "memo": "물세기44%", "account": "농협 3521550301163", "amount": 360000, "depositor": "이형일"},
+  {"date": "2026-10-10", "ship": "가이아호", "port": "군산 비응항", "time": "", "anglers": ["인현태","한영탁","최귀선"], "payment": "입금0910", "memo": "물세기83%", "account": "농협 467010-56-098614", "amount": 300000, "depositor": "이재희"},
+  {"date": "2026-10-17", "ship": "뉴미라클호", "port": "군산 비응항", "time": "", "anglers": ["인현태","한영탁","최귀선"], "payment": "입금0910", "memo": "물세기36%", "account": "하나 71381082408407", "amount": 300000, "depositor": "나영하"},
+  {"date": "2026-10-24", "ship": "코리아호", "port": "군산 비응항", "time": "", "anglers": ["인현태","한영탁","최귀선","조정환"], "payment": "입금0910", "memo": "물세기55%", "account": "국민 50360104519505", "amount": 440000, "depositor": "윤대성"},
+  {"date": "2026-10-31", "ship": "가이아호", "port": "군산 비응항", "time": "", "anglers": ["인현태","한영탁","최귀선","조정환"], "payment": "입금0910", "memo": "물세기66%", "account": "농협 467010-56-098614", "amount": 400000, "depositor": "이재희"}
+]
