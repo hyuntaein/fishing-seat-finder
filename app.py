@@ -1338,101 +1338,6 @@ with right:
         else:
             st.caption("등록된 사이트가 없습니다.")
 
-    with st.expander(f"📅 예약 현황 보기 (총 {len(reservations)}건)"):
-        if not reservations:
-            st.caption("아직 등록된 예약이 없어요. 왼쪽 '📅 예약 등록'에서 추가해보세요.")
-        else:
-            today_iso = date.today().strftime("%Y-%m-%d")
-            order = sorted(range(len(reservations)), key=lambda i: reservations[i]["date"])
-
-            if "editing_res_idx" not in st.session_state:
-                st.session_state.editing_res_idx = None
-
-            for idx in order:
-                r = reservations[idx]
-                is_past = r["date"] < today_iso
-                badge_color = "#94a3b8" if is_past else "#0e7fa6"
-                card_col, btn_col = st.columns([9, 1])
-                with card_col:
-                    detail_bits = []
-                    if r.get("time"):
-                        detail_bits.append(f"⏱ {r['time']}")
-                    if r.get("payment"):
-                        detail_bits.append(f"💰 {r['payment']}")
-                    if r.get("amount"):
-                        detail_bits.append(f"{r['amount']:,}원")
-                    if r.get("depositor"):
-                        detail_bits.append(f"입금자: {r['depositor']}")
-                    if r.get("account"):
-                        detail_bits.append(f"계좌: {r['account']}")
-                    st.markdown(
-                        f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
-                        f"padding:10px 14px;margin-bottom:8px'>"
-                        f"<div style='font-weight:700;color:{badge_color}'>{r['date']} · {r['ship']}"
-                        f"{(' (' + r['port'] + ')') if r.get('port') else ''}"
-                        f"{' · 지난 예약' if is_past else ''}</div>"
-                        f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {', '.join(r.get('anglers', []))}</div>"
-                        + (f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>{' · '.join(detail_bits)}</div>" if detail_bits else "")
-                        + (f"<div style='font-size:13px;color:#33474f;margin-top:6px'>{r['memo']}</div>" if r.get("memo") else "")
-                        + "</div>",
-                        unsafe_allow_html=True,
-                    )
-                with btn_col:
-                    if st.button("✏️", key=f"edit_res_btn_{idx}", help="이 예약 수정"):
-                        st.session_state.editing_res_idx = (
-                            None if st.session_state.editing_res_idx == idx else idx
-                        )
-
-                if st.session_state.editing_res_idx == idx:
-                    target_r = reservations[idx]
-                    with st.container(border=True):
-                        raw_date = (target_r.get("date") or "").strip()[:10]
-                        try:
-                            parsed_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
-                        except (ValueError, TypeError):
-                            parsed_date = date.today()
-                        e_date = st.date_input("날짜", value=parsed_date, key=f"edit_res_date_{idx}")
-                        e_ship = st.text_input("선박", value=target_r.get("ship", ""), key=f"edit_res_ship_{idx}")
-                        e_port = st.text_input("출항항", value=target_r.get("port", ""), key=f"edit_res_port_{idx}")
-                        e_time = st.text_input("예상시간", value=target_r.get("time", ""), key=f"edit_res_time_{idx}")
-                        e_anglers = st.multiselect(
-                            "출조자", ANGLERS, default=target_r.get("anglers", []), key=f"edit_res_anglers_{idx}"
-                        )
-                        e_payment = st.text_input("입금현황", value=target_r.get("payment", ""), key=f"edit_res_payment_{idx}")
-                        e_memo = st.text_input("비고", value=target_r.get("memo", ""), key=f"edit_res_memo_{idx}")
-                        e_account = st.text_input("계좌", value=target_r.get("account", ""), key=f"edit_res_account_{idx}")
-                        e_amount = st.number_input(
-                            "금액", min_value=0, step=10000, value=int(target_r.get("amount") or 0), key=f"edit_res_amount_{idx}"
-                        )
-                        e_depositor = st.text_input("입금자명", value=target_r.get("depositor", ""), key=f"edit_res_depositor_{idx}")
-
-                        c_save, c_del, c_cancel = st.columns(3)
-                        if c_save.button("저장", key=f"edit_res_save_{idx}", use_container_width=True):
-                            reservations[idx] = {
-                                "date": e_date.strftime("%Y-%m-%d"),
-                                "ship": e_ship, "port": e_port, "time": e_time,
-                                "anglers": e_anglers, "payment": e_payment, "memo": e_memo,
-                                "account": e_account, "amount": int(e_amount), "depositor": e_depositor,
-                            }
-                            save_json(RESERVATION_FILE, reservations)
-                            ok, msg = commit_to_github("reservations.json", reservations)
-                            st.session_state.editing_res_idx = None
-                            if ok:
-                                st.success(f"수정했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
-                            else:
-                                st.warning(f"임시 수정은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-                        if c_del.button("삭제", key=f"edit_res_del_{idx}", use_container_width=True):
-                            reservations.pop(idx)
-                            save_json(RESERVATION_FILE, reservations)
-                            ok, msg = commit_to_github("reservations.json", reservations)
-                            st.session_state.editing_res_idx = None
-                            if ok:
-                                st.success(f"삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
-                            else:
-                                st.warning(f"임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-                        if c_cancel.button("취소", key=f"edit_res_cancel_{idx}", use_container_width=True):
-                            st.session_state.editing_res_idx = None
-
     with st.expander(f"🎣 출조 기록 보기 (총 {len(fishing_logs)}건, 최신순)"):
         if fishing_logs:
             order = sorted(range(len(fishing_logs)), key=lambda i: fishing_logs[i]["date"], reverse=True)
@@ -1680,6 +1585,103 @@ with right:
                     f"</div>",
                     unsafe_allow_html=True,
                 )
+
+
+
+    with st.expander(f"📅 예약 현황 보기 (총 {len(reservations)}건)"):
+        if not reservations:
+            st.caption("아직 등록된 예약이 없어요. 왼쪽 '📅 예약 등록'에서 추가해보세요.")
+        else:
+            today_iso = date.today().strftime("%Y-%m-%d")
+            order = sorted(range(len(reservations)), key=lambda i: reservations[i]["date"])
+
+            if "editing_res_idx" not in st.session_state:
+                st.session_state.editing_res_idx = None
+
+            for idx in order:
+                r = reservations[idx]
+                is_past = r["date"] < today_iso
+                badge_color = "#94a3b8" if is_past else "#0e7fa6"
+                card_col, btn_col = st.columns([9, 1])
+                with card_col:
+                    detail_bits = []
+                    if r.get("time"):
+                        detail_bits.append(f"⏱ {r['time']}")
+                    if r.get("payment"):
+                        detail_bits.append(f"💰 {r['payment']}")
+                    if r.get("amount"):
+                        detail_bits.append(f"{r['amount']:,}원")
+                    if r.get("depositor"):
+                        detail_bits.append(f"입금자: {r['depositor']}")
+                    if r.get("account"):
+                        detail_bits.append(f"계좌: {r['account']}")
+                    st.markdown(
+                        f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
+                        f"padding:10px 14px;margin-bottom:8px'>"
+                        f"<div style='font-weight:700;color:{badge_color}'>{r['date']} · {r['ship']}"
+                        f"{(' (' + r['port'] + ')') if r.get('port') else ''}"
+                        f"{' · 지난 예약' if is_past else ''}</div>"
+                        f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {', '.join(r.get('anglers', []))}</div>"
+                        + (f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>{' · '.join(detail_bits)}</div>" if detail_bits else "")
+                        + (f"<div style='font-size:13px;color:#33474f;margin-top:6px'>{r['memo']}</div>" if r.get("memo") else "")
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+                with btn_col:
+                    if st.button("✏️", key=f"edit_res_btn_{idx}", help="이 예약 수정"):
+                        st.session_state.editing_res_idx = (
+                            None if st.session_state.editing_res_idx == idx else idx
+                        )
+
+                if st.session_state.editing_res_idx == idx:
+                    target_r = reservations[idx]
+                    with st.container(border=True):
+                        raw_date = (target_r.get("date") or "").strip()[:10]
+                        try:
+                            parsed_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+                        except (ValueError, TypeError):
+                            parsed_date = date.today()
+                        e_date = st.date_input("날짜", value=parsed_date, key=f"edit_res_date_{idx}")
+                        e_ship = st.text_input("선박", value=target_r.get("ship", ""), key=f"edit_res_ship_{idx}")
+                        e_port = st.text_input("출항항", value=target_r.get("port", ""), key=f"edit_res_port_{idx}")
+                        e_time = st.text_input("예상시간", value=target_r.get("time", ""), key=f"edit_res_time_{idx}")
+                        e_anglers = st.multiselect(
+                            "출조자", ANGLERS, default=target_r.get("anglers", []), key=f"edit_res_anglers_{idx}"
+                        )
+                        e_payment = st.text_input("입금현황", value=target_r.get("payment", ""), key=f"edit_res_payment_{idx}")
+                        e_memo = st.text_input("비고", value=target_r.get("memo", ""), key=f"edit_res_memo_{idx}")
+                        e_account = st.text_input("계좌", value=target_r.get("account", ""), key=f"edit_res_account_{idx}")
+                        e_amount = st.number_input(
+                            "금액", min_value=0, step=10000, value=int(target_r.get("amount") or 0), key=f"edit_res_amount_{idx}"
+                        )
+                        e_depositor = st.text_input("입금자명", value=target_r.get("depositor", ""), key=f"edit_res_depositor_{idx}")
+
+                        c_save, c_del, c_cancel = st.columns(3)
+                        if c_save.button("저장", key=f"edit_res_save_{idx}", use_container_width=True):
+                            reservations[idx] = {
+                                "date": e_date.strftime("%Y-%m-%d"),
+                                "ship": e_ship, "port": e_port, "time": e_time,
+                                "anglers": e_anglers, "payment": e_payment, "memo": e_memo,
+                                "account": e_account, "amount": int(e_amount), "depositor": e_depositor,
+                            }
+                            save_json(RESERVATION_FILE, reservations)
+                            ok, msg = commit_to_github("reservations.json", reservations)
+                            st.session_state.editing_res_idx = None
+                            if ok:
+                                st.success(f"수정했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                            else:
+                                st.warning(f"임시 수정은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                        if c_del.button("삭제", key=f"edit_res_del_{idx}", use_container_width=True):
+                            reservations.pop(idx)
+                            save_json(RESERVATION_FILE, reservations)
+                            ok, msg = commit_to_github("reservations.json", reservations)
+                            st.session_state.editing_res_idx = None
+                            if ok:
+                                st.success(f"삭제했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                            else:
+                                st.warning(f"임시 삭제는 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                        if c_cancel.button("취소", key=f"edit_res_cancel_{idx}", use_container_width=True):
+                            st.session_state.editing_res_idx = None
 
 
     if not search:
