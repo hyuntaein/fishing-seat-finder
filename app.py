@@ -1392,7 +1392,7 @@ with right:
                             "출항지(항)", value=target_log.get("port", ""), key=f"edit_log_port_{orig_idx}"
                         )
                         e_anglers = st.multiselect(
-                            "출조자", ANGLERS, default=target_log.get("anglers", []), key=f"edit_log_anglers_{orig_idx}"
+                            "출조자", ANGLERS, default=list(dict.fromkeys(target_log.get("anglers", []))), key=f"edit_log_anglers_{orig_idx}"
                         )
 
                         existing_by_angler = {}
@@ -1646,7 +1646,7 @@ with right:
                         e_port = st.text_input("출항항", value=target_r.get("port", ""), key=f"edit_res_port_{idx}")
                         e_time = st.text_input("예상시간", value=target_r.get("time", ""), key=f"edit_res_time_{idx}")
                         e_anglers = st.multiselect(
-                            "출조자", ANGLERS, default=target_r.get("anglers", []), key=f"edit_res_anglers_{idx}"
+                            "출조자", ANGLERS, default=list(dict.fromkeys(target_r.get("anglers", []))), key=f"edit_res_anglers_{idx}"
                         )
                         e_payment = st.text_input("입금현황", value=target_r.get("payment", ""), key=f"edit_res_payment_{idx}")
                         e_memo = st.text_input("비고", value=target_r.get("memo", ""), key=f"edit_res_memo_{idx}")
