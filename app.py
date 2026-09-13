@@ -493,7 +493,7 @@ def parse_catch_text(text: str):
         is_kg = bool(unit) or sp in KG_ONLY_SPECIES
         result.append({
             "species": sp,
-            "count": float(ct) if is_kg else int(float(ct)),
+            "count": float(ct) if is_kg else round(float(ct)),
             "unit": "kg" if is_kg else "마리",
         })
     return result
@@ -1309,24 +1309,6 @@ with left:
                 st.warning("선박과 출조자는 최소 1명 입력하세요.")
 
     st.divider()
-    with st.expander("🏆 개인기록 작성"):
-        pr_person = st.selectbox("출조자", ANGLERS, key="pr_person")
-        pr_text = st.text_area(
-            "개인기록",
-            value=personal_records.get(pr_person, ""),
-            placeholder="예: 참돔 최대 62cm(2026-06-21, 참바다호)\n주꾸미 최다 100수(2023-10-15, 오션투어호)\n갑오징어 최다 28마리(2024-10-26, 성실호)",
-            key="pr_text", height=140,
-        )
-        if st.button("개인기록 저장", key="pr_save_btn"):
-            personal_records[pr_person] = pr_text
-            save_json(PERSONAL_RECORD_FILE, personal_records)
-            ok, msg = commit_to_github("personal_records.json", personal_records)
-            if ok:
-                st.success(f"'{pr_person}'님 개인기록을 저장했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
-            else:
-                st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-
-    st.divider()
     with st.expander("🎣 출조 기록 남기기"):
         log_date = st.date_input("출조일", value=date.today(), key="log_date")
         log_ship = st.text_input("배 이름", placeholder="예: 아쿠아마린호", key="log_ship")
@@ -1589,12 +1571,28 @@ with right:
                     angler_pick_options = ["선택 안함"] + [
                         f"{row['출조자']} ({row['출조횟수']}회)" for _, row in summary_df.iterrows()
                     ]
-                    angler_picked = st.selectbox("🔍 출조자를 선택하면 그분의 출조 기록을 볼 수 있어요", angler_pick_options, key="stat_angler_pick")
+                    angler_picked = st.selectbox("🔍 출조자를 선택하면 그분의 출조 기록·개인기록을 볼 수 있어요", angler_pick_options, key="stat_angler_pick")
                     if angler_picked != "선택 안함":
                         picked_angler = angler_picked.rsplit(" (", 1)[0]
+
+                        st.markdown(f"**🏆 '{picked_angler}' 개인기록**")
+                        pr_text = st.text_area(
+                            "개인기록", value=personal_records.get(picked_angler, ""),
+                            placeholder="예: 참돔 최대 62cm(2026-06-21, 참바다호)\n주꾸미 최다 12.4kg(2023-10-15, 오션투어호)",
+                            key=f"pr_text_{picked_angler}", height=120, label_visibility="collapsed",
+                        )
+                        if st.button("개인기록 저장", key=f"pr_save_{picked_angler}"):
+                            personal_records[picked_angler] = pr_text
+                            save_json(PERSONAL_RECORD_FILE, personal_records)
+                            ok, msg = commit_to_github("personal_records.json", personal_records)
+                            if ok:
+                                st.success(f"'{picked_angler}'님 개인기록을 저장했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                            else:
+                                st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+
                         matched_logs = [lg for lg in fishing_logs if picked_angler in lg.get("anglers", [])]
                         matched_logs.sort(key=lambda lg: lg.get("date", ""), reverse=True)
-                        st.markdown(f"**'{picked_angler}' 출조 기록 ({len(matched_logs)}건)**")
+                        st.markdown(f"**📋 '{picked_angler}' 출조 기록 ({len(matched_logs)}건)**")
                         for lg in matched_logs:
                             catches = get_log_catches(lg)
                             catch_by_angler = {}
@@ -1663,25 +1661,6 @@ with right:
                             + "</div>",
                             unsafe_allow_html=True,
                         )
-
-    with st.expander("🏆 개인기록 보기"):
-        any_record = False
-        for person in ANGLERS:
-            text = personal_records.get(person, "").strip()
-            if not text:
-                continue
-            any_record = True
-            record_html = text.replace("\n", "<br>")
-            st.markdown(
-                f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
-                f"padding:12px 16px;margin-bottom:10px'>"
-                f"<div style='font-weight:800;color:#0b3b57;font-size:15px'>🏆 {person}</div>"
-                f"<div style='font-size:13.5px;color:#33474f;margin-top:6px'>{record_html}</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        if not any_record:
-            st.caption("아직 작성된 개인기록이 없어요. 왼쪽 '🏆 개인기록 작성'에서 추가해보세요.")
 
     with st.expander("📖 어종 도감"):
         st.caption("참고용 정보이며, 실제 조황·생태는 해마다 다를 수 있어요. 금어기는 2026.1.1 기준 수산자원관리법 시행령 기준이며, 지역·어업방식에 따라 예외가 있을 수 있으니 출조 전 최신 고시를 꼭 확인하세요.")
