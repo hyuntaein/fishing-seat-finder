@@ -17,6 +17,7 @@ LOG_FILE = APP_DIR / "fishing_logs.json"
 TRASH_FILE = APP_DIR / "deleted_sites.json"
 RESERVATION_FILE = APP_DIR / "reservations.json"
 SITE_PREF_FILE = APP_DIR / "site_preferences.json"
+PERSONAL_RECORD_FILE = APP_DIR / "personal_records.json"
 
 ANGLERS = ["인현태", "조정환", "한영탁", "김정국", "최귀선", "손님"]
 
@@ -474,23 +475,57 @@ def fetch_weather(lat: float, lon: float, target_iso: str):
     return result
 
 
+KG_ONLY_SPECIES = {"주꾸미"}
+
+
 def parse_catch_text(text: str):
-    """'참돔4,광어1' 같은 텍스트를 [{'species':'참돔','count':4}, ...] 로 파싱한다."""
+    """'참돔4,광어1' 또는 '주꾸미1.2' 같은 텍스트를 파싱한다.
+    '주꾸미'는 kg 표기 없이 숫자만 적어도 항상 무게(kg)로 인식한다.
+    [{'species':'참돔','count':4,'unit':'마리'}, {'species':'주꾸미','count':1.2,'unit':'kg'}]"""
     if not text:
         return []
-    pairs = re.findall(r"([가-힣A-Za-z]+)\s*(\d+)", text)
-    return [{"species": sp.strip(), "count": int(ct)} for sp, ct in pairs if sp.strip()]
+    pairs = re.findall(r"([가-힣A-Za-z]+)\s*(\d+(?:\.\d+)?)\s*(kg|킬로|킬로그램)?", text)
+    result = []
+    for sp, ct, unit in pairs:
+        sp = sp.strip()
+        if not sp:
+            continue
+        is_kg = bool(unit) or sp in KG_ONLY_SPECIES
+        result.append({
+            "species": sp,
+            "count": float(ct) if is_kg else int(float(ct)),
+            "unit": "kg" if is_kg else "마리",
+        })
+    return result
 
 
 def format_catch_text(catches):
-    return ",".join(f"{c['species']}{c['count']}" for c in catches if c.get("count"))
+    parts = []
+    for c in catches:
+        if not c.get("count"):
+            continue
+        unit = c.get("unit", "마리")
+        parts.append(f"{c['species']}{c['count']}kg" if unit == "kg" else f"{c['species']}{c['count']}")
+    return ",".join(parts)
+
+
+def catch_label(species: str, count, unit: str = "마리") -> str:
+    if unit == "kg":
+        count_txt = f"{round(float(count), 2):g}"
+        return f"{species}{count_txt}kg"
+    return f"{species}{count}"
 
 
 def get_log_catches(log: dict):
-    """log 항목에서 사람별 (어종,마릿수) 목록을 가져온다.
-    새 형식(catches 필드)이 있으면 그대로, 옛 형식(species/count 공용)이면 변환해서 반환."""
+    """log 항목에서 사람별 (어종,마릿수/kg) 목록을 가져온다.
+    새 형식(catches 필드)이 있으면 그대로(unit 없으면 '마리' 기본값), 옛 형식(species/count 공용)이면 변환해서 반환."""
     if log.get("catches"):
-        return log["catches"]
+        result = []
+        for c in log["catches"]:
+            c = dict(c)
+            c.setdefault("unit", "마리")
+            result.append(c)
+        return result
     anglers = log.get("anglers", [])
     species = log.get("species", "")
     count = log.get("count", 0)
@@ -498,7 +533,7 @@ def get_log_catches(log: dict):
         count = int(count)
     except (TypeError, ValueError):
         count = 0
-    return [{"angler": a, "species": species, "count": count} for a in anglers]
+    return [{"angler": a, "species": species, "count": count, "unit": "마리"} for a in anglers]
 
 
 def get_september_special_dates(today: date):
@@ -920,6 +955,7 @@ fishing_logs = load_json(LOG_FILE, [])
 deleted_sites = load_json(TRASH_FILE, [])
 reservations = load_json(RESERVATION_FILE, [])
 site_prefs = load_json(SITE_PREF_FILE, {})
+personal_records = load_json(PERSONAL_RECORD_FILE, {})
 
 st.markdown("""
 <div class="brand-wrap">
@@ -1273,6 +1309,24 @@ with left:
                 st.warning("선박과 출조자는 최소 1명 입력하세요.")
 
     st.divider()
+    with st.expander("🏆 개인기록 작성"):
+        pr_person = st.selectbox("출조자", ANGLERS, key="pr_person")
+        pr_text = st.text_area(
+            "개인기록",
+            value=personal_records.get(pr_person, ""),
+            placeholder="예: 참돔 최대 62cm(2026-06-21, 참바다호)\n주꾸미 최다 100수(2023-10-15, 오션투어호)\n갑오징어 최다 28마리(2024-10-26, 성실호)",
+            key="pr_text", height=140,
+        )
+        if st.button("개인기록 저장", key="pr_save_btn"):
+            personal_records[pr_person] = pr_text
+            save_json(PERSONAL_RECORD_FILE, personal_records)
+            ok, msg = commit_to_github("personal_records.json", personal_records)
+            if ok:
+                st.success(f"'{pr_person}'님 개인기록을 저장했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+            else:
+                st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+
+    st.divider()
     with st.expander("🎣 출조 기록 남기기"):
         log_date = st.date_input("출조일", value=date.today(), key="log_date")
         log_ship = st.text_input("배 이름", placeholder="예: 아쿠아마린호", key="log_ship")
@@ -1281,7 +1335,7 @@ with left:
 
         log_catches = []
         if log_anglers:
-            st.markdown("**사람별 조황** (예: `참돔4,광어1`)")
+            st.markdown("**사람별 조황** (예: `참돔4,광어1` · 주꾸미는 항상 kg로 인식돼요, 그냥 `주꾸미1.2`)")
             for a in log_anglers:
                 txt = st.text_input(f"{a}", placeholder="참돔4,광어1", key=f"log_catch_{a}")
                 log_catches.extend([{"angler": a, **c} for c in parse_catch_text(txt)])
@@ -1389,7 +1443,7 @@ with right:
                 by_angler = {}
                 for c in catches:
                     if c.get("count"):
-                        by_angler.setdefault(c["angler"], []).append(f"{c['species']}{c['count']}")
+                        by_angler.setdefault(c["angler"], []).append(catch_label(c["species"], c["count"], c.get("unit","마리")))
                 catch_txt = ", ".join(f"{a} {'/'.join(sps)}" for a, sps in by_angler.items())
                 memo_txt = (log.get("memo") or "").replace("\n", "<br>")
 
@@ -1438,7 +1492,7 @@ with right:
                             existing_by_angler.setdefault(c["angler"], []).append(c)
                         e_catches = []
                         if e_anglers:
-                            st.markdown("**사람별 조황** (예: `참돔4,광어1`)")
+                            st.markdown("**사람별 조황** (예: `참돔4,광어1` · 주꾸미는 항상 kg로 인식돼요, 그냥 `주꾸미1.2`)")
                             for a in e_anglers:
                                 prev_txt = format_catch_text(existing_by_angler.get(a, []))
                                 txt = st.text_input(
@@ -1505,26 +1559,29 @@ with right:
                 for a in log.get("anglers", []):
                     angler_trip_list.append(a)
                 for c in get_log_catches(log):
-                    all_catches.append({"출조자": c["angler"], "species": c["species"], "count": c.get("count", 0) or 0})
+                    all_catches.append({
+                        "출조자": c["angler"], "species": c["species"],
+                        "count": c.get("count", 0) or 0, "unit": c.get("unit", "마리"),
+                    })
 
             trip_counts = pd.Series(angler_trip_list).value_counts()
 
             stat_cols = st.columns([2, 1])
 
             with stat_cols[0]:
-                st.markdown("**🧑 출조자별 출조횟수 (어종별 마릿수)**")
+                st.markdown("**🧑 출조자별 출조횟수 (어종별 마릿수/kg)**")
                 if angler_trip_list:
                     if all_catches:
                         cdf = pd.DataFrame(all_catches)
-                        pivot = cdf.groupby(["출조자", "species"])["count"].sum().reset_index(name="마릿수")
-                        pivot = pivot[pivot["마릿수"] > 0]
+                        pivot = cdf.groupby(["출조자", "species", "unit"])["count"].sum().reset_index(name="합계")
+                        pivot = pivot[pivot["합계"] > 0]
                     else:
-                        pivot = pd.DataFrame(columns=["출조자", "species", "마릿수"])
+                        pivot = pd.DataFrame(columns=["출조자", "species", "unit", "합계"])
 
                     summary_rows = []
                     for angler in trip_counts.index:
-                        g = pivot[pivot["출조자"] == angler].sort_values("마릿수", ascending=False)
-                        detail = ", ".join(f"{row['species']}{int(row['마릿수'])}" for _, row in g.iterrows())
+                        g = pivot[pivot["출조자"] == angler].sort_values("합계", ascending=False)
+                        detail = ", ".join(catch_label(row["species"], row["합계"], row["unit"]) for _, row in g.iterrows())
                         summary_rows.append({"출조자": angler, "출조횟수": int(trip_counts[angler]), "어종별": detail or "-"})
                     summary_df = pd.DataFrame(summary_rows).sort_values("출조횟수", ascending=False)
                     st.dataframe(summary_df, use_container_width=True, hide_index=True)
@@ -1543,7 +1600,7 @@ with right:
                             catch_by_angler = {}
                             for c in catches:
                                 if c.get("count"):
-                                    catch_by_angler.setdefault(c["angler"], []).append(f"{c['species']}{c['count']}")
+                                    catch_by_angler.setdefault(c["angler"], []).append(catch_label(c["species"], c["count"], c.get("unit","마리")))
                             catch_txt = ", ".join(f"{a} {'/'.join(sps)}" for a, sps in catch_by_angler.items())
                             memo_txt = (lg.get("memo") or "").replace("\n", "<br>")
                             st.markdown(
@@ -1593,7 +1650,7 @@ with right:
                         catch_by_angler = {}
                         for c in catches:
                             if c.get("count"):
-                                catch_by_angler.setdefault(c["angler"], []).append(f"{c['species']}{c['count']}")
+                                catch_by_angler.setdefault(c["angler"], []).append(catch_label(c["species"], c["count"], c.get("unit","마리")))
                         catch_txt = ", ".join(f"{a} {'/'.join(sps)}" for a, sps in catch_by_angler.items())
                         memo_txt = (lg.get("memo") or "").replace("\n", "<br>")
                         st.markdown(
@@ -1606,6 +1663,25 @@ with right:
                             + "</div>",
                             unsafe_allow_html=True,
                         )
+
+    with st.expander("🏆 개인기록 보기"):
+        any_record = False
+        for person in ANGLERS:
+            text = personal_records.get(person, "").strip()
+            if not text:
+                continue
+            any_record = True
+            record_html = text.replace("\n", "<br>")
+            st.markdown(
+                f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;"
+                f"padding:12px 16px;margin-bottom:10px'>"
+                f"<div style='font-weight:800;color:#0b3b57;font-size:15px'>🏆 {person}</div>"
+                f"<div style='font-size:13.5px;color:#33474f;margin-top:6px'>{record_html}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        if not any_record:
+            st.caption("아직 작성된 개인기록이 없어요. 왼쪽 '🏆 개인기록 작성'에서 추가해보세요.")
 
     with st.expander("📖 어종 도감"):
         st.caption("참고용 정보이며, 실제 조황·생태는 해마다 다를 수 있어요. 금어기는 2026.1.1 기준 수산자원관리법 시행령 기준이며, 지역·어업방식에 따라 예외가 있을 수 있으니 출조 전 최신 고시를 꼭 확인하세요.")
