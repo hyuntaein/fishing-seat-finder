@@ -1328,59 +1328,51 @@ with right:
         })
     with st.expander(f"📋 등록된 사이트 목록 보기 (총 {len(all_sites_rows)}개)"):
         if all_sites_rows:
-            st.caption("선상24 = API로 실시간 예약 현황 자동 조회 · 일반 = 홈페이지 텍스트로 대략 판단")
+            st.caption("선상24 = API로 실시간 예약 현황 자동 조회 · 일반 = 홈페이지 텍스트로 대략 판단 · 🔵🔴 버튼으로 바로 색깔 지정")
 
-            sites_df = pd.DataFrame(all_sites_rows)
-            sites_df.insert(0, "선호", sites_df["선사명"].map(lambda n: {"like": "🔵", "dislike": "🔴"}.get(site_prefs.get(n), "")))
-
-            def _pref_row_style(row):
-                pref = site_prefs.get(row["선사명"])
+            for i, s in enumerate(all_sites_rows):
+                name = s["선사명"]
+                pref = site_prefs.get(name)
                 if pref == "like":
-                    return ["background-color: #dbeafe"] * len(row)
-                if pref == "dislike":
-                    return ["background-color: #fee2e2"] * len(row)
-                return [""] * len(row)
-
-            st.dataframe(
-                sites_df.style.apply(_pref_row_style, axis=1),
-                use_container_width=True, hide_index=True,
-                height=38 * (len(sites_df) + 1) + 3,
-                column_config={
-                    "주소": st.column_config.LinkColumn("주소", display_text="바로가기 ↗"),
-                },
-            )
-
-            pref_col1, pref_col2, pref_col3 = st.columns([2, 1, 1])
-            with pref_col1:
-                pref_pick = st.selectbox(
-                    "🎨 색깔 지정할 배 선택", ["선택 안함"] + [s["선사명"] for s in all_sites_rows], key="pref_pick"
-                )
-            with pref_col2:
-                if st.button("🔵 선호(파란색)", key="pref_like_btn", use_container_width=True) and pref_pick != "선택 안함":
-                    site_prefs[pref_pick] = "like"
-                    save_json(SITE_PREF_FILE, site_prefs)
-                    ok, msg = commit_to_github("site_preferences.json", site_prefs)
-                    if ok:
-                        st.success(f"'{pref_pick}' 파란색으로 표시했어요. 새로고침(F5) 하면 반영됩니다.")
-                    else:
-                        st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-            with pref_col3:
-                if st.button("🔴 비선호(빨간색)", key="pref_dislike_btn", use_container_width=True) and pref_pick != "선택 안함":
-                    site_prefs[pref_pick] = "dislike"
-                    save_json(SITE_PREF_FILE, site_prefs)
-                    ok, msg = commit_to_github("site_preferences.json", site_prefs)
-                    if ok:
-                        st.success(f"'{pref_pick}' 빨간색으로 표시했어요. 새로고침(F5) 하면 반영됩니다.")
-                    else:
-                        st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-            if pref_pick != "선택 안함" and st.button("⚪ 색깔 지우기", key="pref_clear_btn"):
-                site_prefs.pop(pref_pick, None)
-                save_json(SITE_PREF_FILE, site_prefs)
-                ok, msg = commit_to_github("site_preferences.json", site_prefs)
-                if ok:
-                    st.success(f"'{pref_pick}' 색깔 표시를 지웠어요. 새로고침(F5) 하면 반영됩니다.")
+                    bg, txt_color, sub_color = "#2563eb", "#ffffff", "#dbeafe"
+                elif pref == "dislike":
+                    bg, txt_color, sub_color = "#dc2626", "#ffffff", "#fee2e2"
                 else:
-                    st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                    bg, txt_color, sub_color = "#f8fafc", "#0b3b57", "#7a8794"
+
+                row_col, blue_col, red_col, clear_col = st.columns([7, 1, 1, 1])
+                with row_col:
+                    addr_html = f"<a href='{s['주소']}' target='_blank' style='color:{txt_color};text-decoration:underline'>바로가기 ↗</a>" if s.get("주소") else ""
+                    st.markdown(
+                        f"<div style='background:{bg};border-radius:10px;"
+                        f"padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center'>"
+                        f"<div><b style='color:{txt_color}'>{name}</b> <span style='color:{sub_color};font-size:12.5px'>"
+                        f"{s['구분']} · {s.get('주어종','')} · {s['권역']} {s.get('도시','')} {s['출항지']}</span></div>"
+                        f"<div style='font-size:12.5px'>{addr_html}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                with blue_col:
+                    if st.button("🔵", key=f"pref_like_{i}", help=f"{name} 선호(파란색)"):
+                        site_prefs[name] = "like"
+                        save_json(SITE_PREF_FILE, site_prefs)
+                        ok, msg = commit_to_github("site_preferences.json", site_prefs)
+                        if not ok:
+                            st.warning(f"GitHub 자동 저장 실패: {msg}")
+                with red_col:
+                    if st.button("🔴", key=f"pref_dislike_{i}", help=f"{name} 비선호(빨간색)"):
+                        site_prefs[name] = "dislike"
+                        save_json(SITE_PREF_FILE, site_prefs)
+                        ok, msg = commit_to_github("site_preferences.json", site_prefs)
+                        if not ok:
+                            st.warning(f"GitHub 자동 저장 실패: {msg}")
+                with clear_col:
+                    if pref and st.button("⚪", key=f"pref_clear_{i}", help=f"{name} 색깔 지우기"):
+                        site_prefs.pop(name, None)
+                        save_json(SITE_PREF_FILE, site_prefs)
+                        ok, msg = commit_to_github("site_preferences.json", site_prefs)
+                        if not ok:
+                            st.warning(f"GitHub 자동 저장 실패: {msg}")
         else:
             st.caption("등록된 사이트가 없습니다.")
 
