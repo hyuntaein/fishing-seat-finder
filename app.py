@@ -16,6 +16,7 @@ MANUAL_FILE = APP_DIR / "manual_sites.json"
 LOG_FILE = APP_DIR / "fishing_logs.json"
 TRASH_FILE = APP_DIR / "deleted_sites.json"
 RESERVATION_FILE = APP_DIR / "reservations.json"
+SITE_PREF_FILE = APP_DIR / "site_preferences.json"
 
 ANGLERS = ["인현태", "조정환", "한영탁", "김정국", "최귀선", "손님"]
 
@@ -918,6 +919,7 @@ manual_sites = load_json(MANUAL_FILE, [])
 fishing_logs = load_json(LOG_FILE, [])
 deleted_sites = load_json(TRASH_FILE, [])
 reservations = load_json(RESERVATION_FILE, [])
+site_prefs = load_json(SITE_PREF_FILE, {})
 
 st.markdown("""
 <div class="brand-wrap">
@@ -1327,14 +1329,58 @@ with right:
     with st.expander(f"📋 등록된 사이트 목록 보기 (총 {len(all_sites_rows)}개)"):
         if all_sites_rows:
             st.caption("선상24 = API로 실시간 예약 현황 자동 조회 · 일반 = 홈페이지 텍스트로 대략 판단")
+
+            sites_df = pd.DataFrame(all_sites_rows)
+            sites_df.insert(0, "선호", sites_df["선사명"].map(lambda n: {"like": "🔵", "dislike": "🔴"}.get(site_prefs.get(n), "")))
+
+            def _pref_row_style(row):
+                pref = site_prefs.get(row["선사명"])
+                if pref == "like":
+                    return ["background-color: #dbeafe"] * len(row)
+                if pref == "dislike":
+                    return ["background-color: #fee2e2"] * len(row)
+                return [""] * len(row)
+
             st.dataframe(
-                pd.DataFrame(all_sites_rows),
+                sites_df.style.apply(_pref_row_style, axis=1),
                 use_container_width=True, hide_index=True,
-                height=38 * (len(all_sites_rows) + 1) + 3,
+                height=38 * (len(sites_df) + 1) + 3,
                 column_config={
                     "주소": st.column_config.LinkColumn("주소", display_text="바로가기 ↗"),
                 },
             )
+
+            pref_col1, pref_col2, pref_col3 = st.columns([2, 1, 1])
+            with pref_col1:
+                pref_pick = st.selectbox(
+                    "🎨 색깔 지정할 배 선택", ["선택 안함"] + [s["선사명"] for s in all_sites_rows], key="pref_pick"
+                )
+            with pref_col2:
+                if st.button("🔵 선호(파란색)", key="pref_like_btn", use_container_width=True) and pref_pick != "선택 안함":
+                    site_prefs[pref_pick] = "like"
+                    save_json(SITE_PREF_FILE, site_prefs)
+                    ok, msg = commit_to_github("site_preferences.json", site_prefs)
+                    if ok:
+                        st.success(f"'{pref_pick}' 파란색으로 표시했어요. 새로고침(F5) 하면 반영됩니다.")
+                    else:
+                        st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+            with pref_col3:
+                if st.button("🔴 비선호(빨간색)", key="pref_dislike_btn", use_container_width=True) and pref_pick != "선택 안함":
+                    site_prefs[pref_pick] = "dislike"
+                    save_json(SITE_PREF_FILE, site_prefs)
+                    ok, msg = commit_to_github("site_preferences.json", site_prefs)
+                    if ok:
+                        st.success(f"'{pref_pick}' 빨간색으로 표시했어요. 새로고침(F5) 하면 반영됩니다.")
+                    else:
+                        st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+            if pref_pick != "선택 안함" and st.button("⚪ 색깔 지우기", key="pref_clear_btn"):
+                site_prefs.pop(pref_pick, None)
+                save_json(SITE_PREF_FILE, site_prefs)
+                ok, msg = commit_to_github("site_preferences.json", site_prefs)
+                if ok:
+                    st.success(f"'{pref_pick}' 색깔 표시를 지웠어요. 새로고침(F5) 하면 반영됩니다.")
+                else:
+                    st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
         else:
             st.caption("등록된 사이트가 없습니다.")
 
