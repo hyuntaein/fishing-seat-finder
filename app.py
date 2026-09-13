@@ -513,7 +513,7 @@ def catch_label(species: str, count, unit: str = "마리") -> str:
     if unit == "kg":
         count_txt = f"{round(float(count), 2):g}"
         return f"{species}{count_txt}kg"
-    return f"{species}{count}"
+    return f"{species}{int(round(float(count)))}"
 
 
 def get_log_catches(log: dict):
