@@ -18,6 +18,7 @@ TRASH_FILE = APP_DIR / "deleted_sites.json"
 RESERVATION_FILE = APP_DIR / "reservations.json"
 SITE_PREF_FILE = APP_DIR / "site_preferences.json"
 PERSONAL_RECORD_FILE = APP_DIR / "personal_records.json"
+BOOKING_WATCH_FILE = APP_DIR / "booking_watch_log.json"
 
 ANGLERS = ["인현태", "조정환", "한영탁", "김정국", "최귀선", "손님"]
 
@@ -956,6 +957,7 @@ deleted_sites = load_json(TRASH_FILE, [])
 reservations = load_json(RESERVATION_FILE, [])
 site_prefs = load_json(SITE_PREF_FILE, {})
 personal_records = load_json(PERSONAL_RECORD_FILE, {})
+booking_watch_log = load_json(BOOKING_WATCH_FILE, {})
 
 st.markdown("""
 <div class="brand-wrap">
@@ -1132,6 +1134,30 @@ with st.expander("🦑 9월 특일(1일·매주 토요일) 주꾸미·갑오징�
                 st.caption("조회 결과가 없어요.")
         else:
             st.info("버튼을 눌러야 조회가 시작돼요 (앱 여는 속도를 위해 자동 조회는 꺼두었어요).")
+
+with st.expander("📡 예약 오픈 감시 로그 (GitHub Actions 자동 수집)"):
+    st.caption(
+        "15분마다 백그라운드에서 자동으로 확인해서, 이 날짜의 스케줄이 처음 뜬 시각(오픈 감지)과 "
+        "처음 남은자리가 생긴 시각(예약가능 감지)을 기록해요. 앱을 안 열어도 계속 쌓여요."
+    )
+    if not booking_watch_log:
+        st.caption(
+            "아직 수집된 기록이 없어요. GitHub 저장소에 monitor_booking.py + "
+            ".github/workflows/booking_watch.yml 파일을 추가하고 Actions가 최소 한 번 실행되어야 데이터가 쌓여요."
+        )
+    else:
+        watch_rows = []
+        for entry in booking_watch_log.values():
+            watch_rows.append({
+                "배": entry.get("ship", ""),
+                "날짜": entry.get("date", ""),
+                "오픈 감지 시각": entry.get("day_appeared_at", "-"),
+                "예약가능 감지 시각": entry.get("seats_open_at", "-"),
+                "최근 확인": entry.get("last_checked", ""),
+                "최근 남은자리": entry.get("last_remain", 0),
+            })
+        watch_df = pd.DataFrame(watch_rows).sort_values(["날짜", "배"])
+        st.dataframe(watch_df, use_container_width=True, hide_index=True)
 
 left, right = st.columns([1, 3.2], gap="large")
 
