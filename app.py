@@ -1364,7 +1364,7 @@ with right:
         })
     with st.expander(f"📋 등록된 사이트 목록 보기 (총 {len(all_sites_rows)}개)"):
         if all_sites_rows:
-            st.caption("선상24 = API로 실시간 예약 현황 자동 조회 · 일반 = 홈페이지 텍스트로 대략 판단 · 🔵🔴 버튼으로 바로 색깔 지정")
+            st.caption("선상24 = API로 실시간 예약 현황 자동 조회 · 일반 = 홈페이지 텍스트로 대략 판단 · 오른쪽 버튼 탭할 때마다 없음→🔵→🔴 순환")
 
             for i, s in enumerate(all_sites_rows):
                 name = s["선사명"]
@@ -1376,7 +1376,7 @@ with right:
                 else:
                     bg, txt_color, sub_color = "#f8fafc", "#0b3b57", "#7a8794"
 
-                row_col, blue_col, red_col, clear_col = st.columns([7, 1, 1, 1])
+                row_col, toggle_col = st.columns([9, 1])
                 with row_col:
                     addr_html = f"<a href='{s['주소']}' target='_blank' style='color:{txt_color};text-decoration:underline'>바로가기 ↗</a>" if s.get("주소") else ""
                     st.markdown(
@@ -1388,23 +1388,14 @@ with right:
                         f"</div>",
                         unsafe_allow_html=True,
                     )
-                with blue_col:
-                    if st.button("🔵", key=f"pref_like_{i}", help=f"{name} 선호(파란색)"):
-                        site_prefs[name] = "like"
-                        save_json(SITE_PREF_FILE, site_prefs)
-                        ok, msg = commit_to_github("site_preferences.json", site_prefs)
-                        if not ok:
-                            st.warning(f"GitHub 자동 저장 실패: {msg}")
-                with red_col:
-                    if st.button("🔴", key=f"pref_dislike_{i}", help=f"{name} 비선호(빨간색)"):
-                        site_prefs[name] = "dislike"
-                        save_json(SITE_PREF_FILE, site_prefs)
-                        ok, msg = commit_to_github("site_preferences.json", site_prefs)
-                        if not ok:
-                            st.warning(f"GitHub 자동 저장 실패: {msg}")
-                with clear_col:
-                    if pref and st.button("⚪", key=f"pref_clear_{i}", help=f"{name} 색깔 지우기"):
-                        site_prefs.pop(name, None)
+                with toggle_col:
+                    next_pref = {"like": "dislike", "dislike": None}.get(pref, "like")
+                    icon = {"like": "🔵", "dislike": "🔴"}.get(pref, "⚪")
+                    if st.button(icon, key=f"pref_toggle_{i}", help=f"{name} 색깔 바꾸기 (탭할 때마다 없음→파랑→빨강 순환)"):
+                        if next_pref is None:
+                            site_prefs.pop(name, None)
+                        else:
+                            site_prefs[name] = next_pref
                         save_json(SITE_PREF_FILE, site_prefs)
                         ok, msg = commit_to_github("site_preferences.json", site_prefs)
                         if not ok:
