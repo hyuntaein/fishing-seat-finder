@@ -1284,55 +1284,5 @@
       }
     ],
     "memo": "물때 좋고. 자리 뒷자리 4자리\n쉬지않고 잡음.\n\n난 개인타이비슷 146"
-  },
-  {
-    "date": "2026-09-19",
-    "ship": "부남호",
-    "port": "당암포구.",
-    "anglers": [
-      "인현태",
-      "조정환",
-      "한영탁",
-      "최귀선"
-    ],
-    "catches": [
-      {
-        "angler": "인현태",
-        "species": "주꾸미",
-        "count": 3.8,
-        "unit": "kg"
-      },
-      {
-        "angler": "인현태",
-        "species": "갑",
-        "count": 3,
-        "unit": "마리"
-      },
-      {
-        "angler": "조정환",
-        "species": "주꾸미",
-        "count": 3.8,
-        "unit": "kg"
-      },
-      {
-        "angler": "조정환",
-        "species": "갑",
-        "count": 3,
-        "unit": "마리"
-      },
-      {
-        "angler": "한영탁",
-        "species": "주꾸미",
-        "count": 3.9,
-        "unit": "kg"
-      },
-      {
-        "angler": "최귀선",
-        "species": "주꾸미",
-        "count": 3.7,
-        "unit": "kg"
-      }
-    ],
-    "memo": "물때 좋고. 자리 뒷자리 4자리\n쉬지않고 잡음.\n\n난 개인타이비슷 146"
   }
 ]
