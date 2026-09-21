@@ -142,5 +142,13 @@
     "city": "태안",
     "port": "영목항",
     "url": "http://www.chungkwangho.net/index.php?mid=bk&year=2026&month=08&day=04&mode=list&PA_N_UID=1588#list"
+  },
+  {
+    "name": "상록호",
+    "main_species": "갑오징어,광어",
+    "region": "인천·경기",
+    "city": "태안",
+    "port": "영목항",
+    "url": "https://sangrok.thefishing.kr/"
   }
 ]
