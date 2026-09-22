@@ -1396,39 +1396,44 @@ with right:
                 name = s["선사명"]
                 pref = site_prefs.get(name)
                 if pref == "like":
-                    bg, txt_color, sub_color = "#2563eb", "#ffffff", "#dbeafe"
+                    bg = "linear-gradient(135deg,#3b82f6,#2563eb)"
+                    txt_color, sub_color = "#ffffff", "#dbeafe"
                 elif pref == "dislike":
-                    bg, txt_color, sub_color = "#dc2626", "#ffffff", "#fee2e2"
+                    bg = "linear-gradient(135deg,#f87171,#dc2626)"
+                    txt_color, sub_color = "#ffffff", "#fee2e2"
                 else:
-                    bg, txt_color, sub_color = "#f8fafc", "#0b3b57", "#7a8794"
+                    bg = "#f8fafc"
+                    txt_color, sub_color = "#0b3b57", "#7a8794"
 
-                addr_html = f"<a href='{s['주소']}' target='_blank' style='color:{txt_color};text-decoration:underline'>바로가기 ↗</a>" if s.get("주소") else ""
-                st.markdown(
-                    f"<div style='background:{bg};border-radius:10px;"
-                    f"padding:8px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center'>"
-                    f"<div><b style='color:{txt_color}'>{name}</b> <span style='color:{sub_color};font-size:12.5px'>"
-                    f"{s['구분']} · {s.get('주어종','')} · {s['권역']} {s.get('도시','')} {s['출항지']}</span></div>"
-                    f"<div style='font-size:12.5px'>{addr_html}</div>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-                blue_col, red_col, clear_col, _spacer = st.columns([1, 1, 1, 6])
+                info_col, blue_col, red_col, clear_col = st.columns([12, 1, 1, 1])
+                with info_col:
+                    detail = f"{s['구분']} · {s.get('주어종','')} · {s['권역']} {s.get('도시','')} {s['출항지']}"
+                    addr_html = f"<a href='{s['주소']}' target='_blank' style='color:{txt_color};font-weight:700;white-space:nowrap;margin-left:10px'>↗</a>" if s.get("주소") else ""
+                    st.markdown(
+                        f"<div style='background:{bg};border-radius:10px;height:38px;"
+                        f"padding:0 12px;margin-bottom:4px;display:flex;align-items:center;overflow:hidden'>"
+                        f"<div style='flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
+                        f"<b style='color:{txt_color}'>{name}</b> "
+                        f"<span style='color:{sub_color};font-size:12px'>{detail}</span>"
+                        f"</div>{addr_html}</div>",
+                        unsafe_allow_html=True,
+                    )
                 with blue_col:
-                    if st.button("🔵", key=f"pref_like_{i}", help=f"{name} 선호(파란색)"):
+                    if st.button("🔵", key=f"pref_like_{i}", help=f"{name} 선호(파란색)", use_container_width=True):
                         site_prefs[name] = "like"
                         save_json(SITE_PREF_FILE, site_prefs)
                         ok, msg = commit_to_github("site_preferences.json", site_prefs)
                         if not ok:
                             st.warning(f"GitHub 자동 저장 실패: {msg}")
                 with red_col:
-                    if st.button("🔴", key=f"pref_dislike_{i}", help=f"{name} 비선호(빨간색)"):
+                    if st.button("🔴", key=f"pref_dislike_{i}", help=f"{name} 비선호(빨간색)", use_container_width=True):
                         site_prefs[name] = "dislike"
                         save_json(SITE_PREF_FILE, site_prefs)
                         ok, msg = commit_to_github("site_preferences.json", site_prefs)
                         if not ok:
                             st.warning(f"GitHub 자동 저장 실패: {msg}")
                 with clear_col:
-                    if st.button("⚪", key=f"pref_clear_{i}", help=f"{name} 색깔 지우기"):
+                    if st.button("⚪", key=f"pref_clear_{i}", help=f"{name} 색깔 지우기", use_container_width=True):
                         site_prefs.pop(name, None)
                         save_json(SITE_PREF_FILE, site_prefs)
                         ok, msg = commit_to_github("site_preferences.json", site_prefs)
