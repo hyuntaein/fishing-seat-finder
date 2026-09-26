@@ -1340,5 +1340,54 @@
       }
     ],
     "memo": "ㆍ"
+  },
+  {
+    "date": "2026-09-26",
+    "ship": "드래곤호",
+    "port": "홍원항",
+    "anglers": [
+      "인현태",
+      "한영탁",
+      "최귀선"
+    ],
+    "catches": [
+      {
+        "angler": "인현태",
+        "species": "주꾸미",
+        "count": 2.1,
+        "unit": "kg"
+      },
+      {
+        "angler": "인현태",
+        "species": "갑",
+        "count": 6,
+        "unit": "마리"
+      },
+      {
+        "angler": "한영탁",
+        "species": "주꾸미",
+        "count": 2.6,
+        "unit": "kg"
+      },
+      {
+        "angler": "한영탁",
+        "species": "갑",
+        "count": 17,
+        "unit": "마리"
+      },
+      {
+        "angler": "최귀선",
+        "species": "주꾸미",
+        "count": 2.7,
+        "unit": "kg"
+      },
+      {
+        "angler": "최귀선",
+        "species": "갑",
+        "count": 11,
+        "unit": "마리"
+      }
+    ],
+    "memo": "ㆍ"
   }
 ]
