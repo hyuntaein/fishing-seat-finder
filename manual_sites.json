@@ -142,5 +142,13 @@
     "city": "태안",
     "port": "영목항",
     "url": "https://sangrok.thefishing.kr/"
+  },
+  {
+    "name": "아일랜드호",
+    "main_species": "갑오징어,광어,참돔",
+    "region": "충남",
+    "city": "태안",
+    "port": "대야도항",
+    "url": "http://www.fishingi.net/"
   }
 ]
