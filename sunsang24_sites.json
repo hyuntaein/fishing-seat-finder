@@ -110,5 +110,13 @@
     "city": "군산",
     "port": "야미도항",
     "base_url": "https://hookstar.sunsang24.com"
+  },
+  {
+    "name": "부남호",
+    "main_species": "주꾸미",
+    "region": "충남",
+    "city": "태안",
+    "port": "당암포구",
+    "base_url": "https://hongdanfishing.sunsang24.com/ship/board"
   }
 ]
