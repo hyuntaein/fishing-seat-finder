@@ -102,5 +102,13 @@
     "city": "태안",
     "port": "구매항",
     "base_url": "https://araon.sunsang24.com"
+  },
+  {
+    "name": "후크스타호",
+    "main_species": "참돔",
+    "region": "충북",
+    "city": "군산",
+    "port": "야미도항",
+    "base_url": "https://hookstar.sunsang24.com"
   }
 ]
