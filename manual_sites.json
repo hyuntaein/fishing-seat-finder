@@ -166,5 +166,13 @@
     "city": "영흥도",
     "port": "선두선착장",
     "url": "http://xn--2f5b291a.com/index.php"
+  },
+  {
+    "name": "어울림호",
+    "main_species": "갑오징어",
+    "region": "충남",
+    "city": "태안",
+    "port": "구매항",
+    "url": "https://eoulim.thefishing.kr/"
   }
 ]
