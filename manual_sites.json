@@ -142,5 +142,13 @@
     "city": "태안",
     "port": "대야도항",
     "url": "http://www.fishingi.net/"
+  },
+  {
+    "name": "지오디(GOD)호",
+    "main_species": "갑오징어",
+    "region": "인천·경기",
+    "city": "영흥도",
+    "port": "진두선착장",
+    "url": "https://www.teamgod.kr/index.php"
   }
 ]
