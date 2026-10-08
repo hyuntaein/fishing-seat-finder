@@ -118,5 +118,13 @@
     "city": "태안",
     "port": "당암포구",
     "base_url": "https://hongdanfishing.sunsang24.com/ship/board"
+  },
+  {
+    "name": "리더호",
+    "main_species": "갑오징어",
+    "region": "충북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://ksnaksi.sunsang24.com"
   }
 ]
