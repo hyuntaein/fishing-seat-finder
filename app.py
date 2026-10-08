@@ -1200,13 +1200,14 @@ with left:
     with st.expander("선상24 사이트 추가"):
         new_name = st.text_input("선사명", key="new_name")
         new_species = st.text_input("주어종 (예: 참돔, 광어)", key="new_species")
+        new_youtuber = st.text_input("유명유튜버 (예: 생활낚시광, 모르면 비워두세요)", key="new_youtuber")
         new_url = st.text_input("선상24 주소", placeholder="https://example.sunsang24.com", key="new_url")
         new_region = st.selectbox("권역", REGIONS[1:], key="new_region")
         new_city = st.text_input("도시 (예: 군산)", key="new_city")
         new_port = st.text_input("출항지 (예: 비응항)", key="new_port")
         if st.button("선상24 사이트 저장"):
             if new_name and new_url:
-                sunsang_sites.append({"name": new_name, "main_species": new_species, "region": new_region, "city": new_city, "port": new_port, "base_url": new_url.rstrip("/")})
+                sunsang_sites.append({"name": new_name, "main_species": new_species, "region": new_region, "city": new_city, "port": new_port, "youtuber": new_youtuber.strip(), "base_url": new_url.rstrip("/")})
                 save_json(SUNSANG_FILE, sunsang_sites)
                 ok, msg = commit_to_github("sunsang24_sites.json", sunsang_sites)
                 if ok:
@@ -1219,13 +1220,14 @@ with left:
     with st.expander("일반 사이트 추가"):
         m_name = st.text_input("선사명", key="m_new_name")
         m_species = st.text_input("주어종 (예: 광어)", key="m_new_species")
+        m_youtuber = st.text_input("유명유튜버 (예: 생활낚시광, 모르면 비워두세요)", key="m_new_youtuber")
         m_url = st.text_input("사이트 주소", placeholder="http://example.co.kr/", key="m_new_url")
         m_region = st.selectbox("권역", REGIONS[1:], key="m_new_region")
         m_city = st.text_input("도시 (예: 보령, 모르면 비워두세요)", key="m_new_city")
         m_port = st.text_input("출항지 (예: 오천항, 모르면 비워두세요)", key="m_new_port")
         if st.button("일반 사이트 저장"):
             if m_name and m_url:
-                manual_sites.append({"name": m_name, "main_species": m_species, "region": m_region, "city": m_city, "port": m_port, "url": m_url.strip()})
+                manual_sites.append({"name": m_name, "main_species": m_species, "region": m_region, "city": m_city, "port": m_port, "youtuber": m_youtuber.strip(), "url": m_url.strip()})
                 save_json(MANUAL_FILE, manual_sites)
                 ok, msg = commit_to_github("manual_sites.json", manual_sites)
                 if ok:
@@ -1379,13 +1381,13 @@ with right:
     for s in sunsang_sites:
         all_sites_rows.append({
             "구분": "선상24", "선사명": s.get("name", ""), "주어종": s.get("main_species", ""),
-            "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""),
+            "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""), "유명유튜버": s.get("youtuber", ""),
             "주소": s.get("base_url", ""),
         })
     for s in manual_sites:
         all_sites_rows.append({
             "구분": "일반", "선사명": s.get("name", ""), "주어종": s.get("main_species", ""),
-            "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""),
+            "권역": s.get("region", ""), "도시": s.get("city", ""), "출항지": s.get("port", ""), "유명유튜버": s.get("youtuber", ""),
             "주소": s.get("url", ""),
         })
     with st.expander(f"📋 등록된 사이트 목록 보기 (총 {len(all_sites_rows)}개)"):
@@ -1408,6 +1410,8 @@ with right:
                 info_col, blue_col, red_col, clear_col = st.columns([12, 1, 1, 1])
                 with info_col:
                     detail = f"{s['구분']} · {s.get('주어종','')} · {s['권역']} {s.get('도시','')} {s['출항지']}"
+                    if s.get("유명유튜버"):
+                        detail += f" · ▶ {s['유명유튜버']}"
                     addr_html = f"<a href='{s['주소']}' target='_blank' style='color:{txt_color};font-weight:700;white-space:nowrap;margin-left:10px'>↗</a>" if s.get("주소") else ""
                     st.markdown(
                         f"<div style='background:{bg};border-radius:10px;height:38px;"
@@ -1439,6 +1443,30 @@ with right:
                         ok, msg = commit_to_github("site_preferences.json", site_prefs)
                         if not ok:
                             st.warning(f"GitHub 자동 저장 실패: {msg}")
+            st.divider()
+            st.markdown("**▶ 유명유튜버 입력/수정**")
+            yt_names = [r["선사명"] for r in all_sites_rows]
+            yt_pick = st.selectbox("배 선택", yt_names, key="yt_pick")
+            cur_yt = next((r.get("유명유튜버", "") for r in all_sites_rows if r["선사명"] == yt_pick), "")
+            yt_val = st.text_input("유명유튜버 (지우려면 비우고 저장)", value=cur_yt, key=f"yt_val_{yt_pick}")
+            if st.button("유튜버 저장", key="yt_save"):
+                done = False
+                for lst, fname, fpath in ((sunsang_sites, "sunsang24_sites.json", SUNSANG_FILE), (manual_sites, "manual_sites.json", MANUAL_FILE)):
+                    hit = False
+                    for s0 in lst:
+                        if s0.get("name") == yt_pick:
+                            s0["youtuber"] = yt_val.strip()
+                            hit = True
+                    if hit:
+                        save_json(fpath, lst)
+                        ok, msg = commit_to_github(fname, lst)
+                        done = True
+                        if ok:
+                            st.success(f"저장했습니다. {msg} 새로고침(F5) 하면 반영됩니다.")
+                        else:
+                            st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+                if not done:
+                    st.warning("해당 배를 찾지 못했습니다.")
         else:
             st.caption("등록된 사이트가 없습니다.")
 
