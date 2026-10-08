@@ -150,5 +150,13 @@
     "city": "영흥도",
     "port": "진두선착장",
     "url": "https://www.teamgod.kr/index.php"
+  },
+  {
+    "name": "뉴정원호",
+    "main_species": "갑오징어",
+    "region": "충남",
+    "city": "",
+    "port": "마검포항",
+    "url": "https://www.jungwonho.com/index.php?mid=index"
   }
 ]
