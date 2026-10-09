@@ -127,5 +127,14 @@
     "city": "군산",
     "port": "비응항",
     "base_url": "https://ksnaksi.sunsang24.com"
+  },
+  {
+    "name": "슈퍼노바호",
+    "main_species": "갑오징어",
+    "region": "인천·경기",
+    "city": "인천",
+    "port": "남항부두",
+    "youtuber": "생활낚시광",
+    "base_url": "https://supernova.sunsang24.com/ship/info"
   }
 ]
