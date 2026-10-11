@@ -946,12 +946,12 @@ st.markdown("""
   .seat-tag{font-size:12px;padding:2px 8px}
   .card-badge{font-size:10px;padding:2px 8px}
   .card-status-txt{font-size:11px}
-  [data-testid="stHorizontalBlock"]:has(.siterow-marker){flex-wrap:nowrap !important;gap:3px !important;align-items:center}
-  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="stColumn"],
-  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="column"]{min-width:0 !important;width:auto !important;flex:0 0 36px !important}
-  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="stColumn"]:first-child,
-  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="column"]:first-child{flex:1 1 0 !important}
-  [data-testid="stHorizontalBlock"]:has(.siterow-marker) button{padding:0 !important;min-height:34px !important;font-size:14px}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker):not(:has([data-testid="stHorizontalBlock"])){flex-wrap:nowrap !important;gap:3px !important;align-items:center}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"],
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="column"]{min-width:0 !important;width:auto !important;flex:0 0 36px !important}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"]:first-child,
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="column"]:first-child{flex:1 1 0 !important}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker):not(:has([data-testid="stHorizontalBlock"])) button{padding:0 !important;min-height:34px !important;font-size:14px}
 }
 </style>
 """, unsafe_allow_html=True)
