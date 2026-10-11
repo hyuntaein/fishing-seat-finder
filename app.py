@@ -926,6 +926,14 @@ st.markdown("""
 .env-src{font-size:10.5px;opacity:.65;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.25)}
 .tide-row{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:700;margin-top:4px}
 
+.siterow-marker{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:pointer}
+.siterow-marker:active{height:auto !important;min-height:38px;padding-top:7px !important;padding-bottom:7px !important;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.siterow-marker:active .siterow-text{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;line-height:1.45}
+@media (hover:hover){
+.siterow-marker:hover{height:auto !important;min-height:38px;padding-top:7px !important;padding-bottom:7px !important}
+.siterow-marker:hover .siterow-text{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;line-height:1.45}
+}
+
 @media (max-width: 680px) {
   .brand-title{font-size:26px}
   .brand-badge{width:42px;height:42px;font-size:20px}
@@ -1422,7 +1430,7 @@ with right:
                     st.markdown(
                         f"<div class='siterow-marker' style='background:{bg};border-radius:10px;height:38px;"
                         f"padding:0 12px;margin-bottom:4px;display:flex;align-items:center;overflow:hidden'>"
-                        f"<div style='flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
+                        f"<div class='siterow-text' style='flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
                         f"<b style='color:{txt_color}'>{name}</b> "
                         f"<span style='color:{sub_color};font-size:12px'>{detail}</span>"
                         f"</div>{addr_html}</div>",
