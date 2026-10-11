@@ -946,6 +946,12 @@ st.markdown("""
   .seat-tag{font-size:12px;padding:2px 8px}
   .card-badge{font-size:10px;padding:2px 8px}
   .card-status-txt{font-size:11px}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker){flex-wrap:nowrap !important;gap:3px !important;align-items:center}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="stColumn"],
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="column"]{min-width:0 !important;width:auto !important;flex:0 0 36px !important}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="stColumn"]:first-child,
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker) > [data-testid="column"]:first-child{flex:1 1 0 !important}
+  [data-testid="stHorizontalBlock"]:has(.siterow-marker) button{padding:0 !important;min-height:34px !important;font-size:14px}
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1414,7 +1420,7 @@ with right:
                         detail += f" · ▶ {s['유명유튜버']}"
                     addr_html = f"<a href='{s['주소']}' target='_blank' style='color:{txt_color};font-weight:700;white-space:nowrap;margin-left:10px'>↗</a>" if s.get("주소") else ""
                     st.markdown(
-                        f"<div style='background:{bg};border-radius:10px;height:38px;"
+                        f"<div class='siterow-marker' style='background:{bg};border-radius:10px;height:38px;"
                         f"padding:0 12px;margin-bottom:4px;display:flex;align-items:center;overflow:hidden'>"
                         f"<div style='flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
                         f"<b style='color:{txt_color}'>{name}</b> "
