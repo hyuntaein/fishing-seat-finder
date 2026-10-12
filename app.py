@@ -210,75 +210,98 @@ CITY_TIDE_IDS = {
 }
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_tide_events(city: str, target_iso: str):
+def _tide_try(city: str, target_iso: str):
     """badatime.com에서 해당 날짜의 만조/간조 시각(HH:MM), 조위(cm), 실제 물때/조류세기(%)를 가져온다.
-    반환값: {"events": [...], "mulddae": "3물", "strength_pct": 16} 또는 None"""
+    실패하면 None. 목록 시작일을 0일/1일/3일 앞으로 바꿔가며 최대 3번 시도한다."""
     city_id = CITY_TIDE_IDS.get(city)
     if not city_id:
         return None
     target_date = datetime.strptime(target_iso, "%Y-%m-%d").date()
-    # 'daily/YYYY-MM'은 "오늘" 기준 30일 롤링 목록이라 과거 날짜가 통째로 빠질 수 있다.
-    # 정확한 날짜(YYYY-MM-DD)를 지정하면 그 날짜부터 목록이 시작되므로 이 문제를 피할 수 있다.
-    url = f"https://www.badatime.com/{city_id}/daily/{target_date:%Y-%m-%d}"
-    try:
-        res = requests.get(url, headers=HEADERS_HTML, timeout=15)
-        res.raise_for_status()
-        res.encoding = res.apparent_encoding or "utf-8"
-        soup = BeautifulSoup(res.text, "html.parser")
-        text = soup.get_text(" ", strip=True)
-    except Exception:
-        return None
-
     WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
     target_wd = WEEKDAY_KR[target_date.weekday()]
-
     day_anchor_pat = re.compile(r"(\d{1,2})\(([가-힣])\)\s+\d{1,2}\.\d{1,2}")
-    anchors = list(day_anchor_pat.finditer(text))
 
-    # 정확한 날짜(YYYY-MM-DD)로 요청했으므로 목록의 '첫 번째' 항목이 곧 그 날짜여야 정상이다.
-    # 우선 첫 앵커의 요일이 실제로 일치하는지 검증하고, 다르면(사이트 구조 변경 등 예외 상황)
-    # 예전 방식대로 날짜+요일이 일치하는 앵커를 찾아 대비한다.
-    target_idx = None
-    if anchors and int(anchors[0].group(1)) == target_date.day and anchors[0].group(2) == target_wd:
-        target_idx = 0
-    else:
+    for back in (0, 1, 3):
+        start_date = target_date - timedelta(days=back)
+        url = f"https://www.badatime.com/{city_id}/daily/{start_date:%Y-%m-%d}"
+        try:
+            res = requests.get(url, headers=HEADERS_HTML, timeout=15)
+            res.raise_for_status()
+            res.encoding = res.apparent_encoding or "utf-8"
+            text = BeautifulSoup(res.text, "html.parser").get_text(" ", strip=True)
+        except Exception:
+            continue
+
+        anchors = list(day_anchor_pat.finditer(text))
+        target_idx = None
         for i, m in enumerate(anchors):
             if int(m.group(1)) == target_date.day and m.group(2) == target_wd:
                 target_idx = i
                 break
-    if target_idx is None:
-        for i, m in enumerate(anchors):
-            if int(m.group(1)) == target_date.day:
-                target_idx = i
-                break
-    if target_idx is None:
-        return None
+        if target_idx is None:
+            for i, m in enumerate(anchors):
+                if int(m.group(1)) == target_date.day:
+                    target_idx = i
+                    break
+        if target_idx is None:
+            continue
 
-    start = anchors[target_idx].end()
-    end = anchors[target_idx + 1].start() if target_idx + 1 < len(anchors) else len(text)
-    # 안전장치: 하루치 블록은 보통 300자를 넘지 않는다. 경계 탐지가 어긋나 다음 날짜까지
-    # 딸려오는 것을 막기 위해 최대 길이를 제한한다.
-    end = min(end, start + 400)
-    block = text[start:end]
+        start = anchors[target_idx].end()
+        end = anchors[target_idx + 1].start() if target_idx + 1 < len(anchors) else len(text)
+        end = min(end, start + 400)
+        block = text[start:end]
 
-    events = []
-    for tm in list(re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▲", block))[:2]:
-        events.append({"type": "high", "time": tm.group(1), "height": int(tm.group(2))})
-    for tm in list(re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▼", block))[:2]:
-        events.append({"type": "low", "time": tm.group(1), "height": int(tm.group(2))})
-    events.sort(key=lambda e: e["time"])
+        events = []
+        for tm in list(re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▲", block))[:2]:
+            events.append({"type": "high", "time": tm.group(1), "height": int(tm.group(2))})
+        for tm in list(re.finditer(r"(\d{2}:\d{2})\s*\(\s*(\d+)\)\s*▼", block))[:2]:
+            events.append({"type": "low", "time": tm.group(1), "height": int(tm.group(2))})
+        events.sort(key=lambda ev: ev["time"])
 
-    # 실제 물때 이름(예: 3물, 조금, 무시)과 조류세기(%)를 페이지에서 그대로 읽는다.
-    mulddae_label, strength_pct = None, None
-    mm = re.search(r"(\d{1,2}\s*물|조금|무시)\s*(\d{1,3})\s*%", block)
-    if mm:
-        mulddae_label = mm.group(1).replace(" ", "")
-        strength_pct = int(mm.group(2))
+        mulddae_label, strength_pct = None, None
+        mm = re.search(r"(\d{1,2}\s*물|조금|무시)\s*(\d{1,3})\s*%", block)
+        if mm:
+            mulddae_label = mm.group(1).replace(" ", "")
+            strength_pct = int(mm.group(2))
 
-    if not events and not mulddae_label:
-        return None
-    return {"events": events, "mulddae": mulddae_label, "strength_pct": strength_pct}
+        if events or mulddae_label:
+            return {"events": events, "mulddae": mulddae_label, "strength_pct": strength_pct}
+    return None
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _tide_cached(city: str, target_iso: str):
+    r = _tide_try(city, target_iso)
+    if r is None:
+        raise LookupError("tide fetch failed")  # 실패는 캐시에 저장되지 않도록 예외로 처리
+    return r
+
+
+_MULDDAE_CYCLE = [f"{i}물" for i in range(1, 14)] + ["조금", "무시"]
+
+
+def fetch_tide_events(city: str, target_iso: str):
+    """실제 물때표 조회. 그 날짜가 실패하면 전·후일의 실제 물때로 하루를 계산해 채운다.
+    반환값: {"events": [...], "mulddae": "7물", "strength_pct": 90, "inferred": False} 또는 None"""
+    try:
+        r = _tide_cached(city, target_iso)
+        r = dict(r)
+        r["inferred"] = False
+        return r
+    except Exception:
+        pass
+    d = datetime.strptime(target_iso, "%Y-%m-%d").date()
+    for delta in (-1, 1):
+        nb = (d + timedelta(days=delta)).strftime("%Y-%m-%d")
+        try:
+            r = _tide_cached(city, nb)
+        except Exception:
+            continue
+        label = (r.get("mulddae") or "").replace("(사리)", "")
+        if label in _MULDDAE_CYCLE:
+            idx = (_MULDDAE_CYCLE.index(label) - delta) % 15
+            return {"events": [], "mulddae": _MULDDAE_CYCLE[idx], "strength_pct": None, "inferred": True}
+    return None
 
 
 def build_tide_wave_svg(events):
@@ -424,7 +447,8 @@ def estimate_mulddae(target_date: date):
     phase = days_since % synodic_month
     lunar_day = int(phase) + 1  # 1~30
     # 15일 주기로 물때 이름 매핑 (보름/그믐 부근이 사리, 반달 부근이 조금)
-    idx = (lunar_day - 1) % 15
+    # 음력 1일 = 7물(사리)부터 시작 (실제 물때표와 대조해 확인)
+    idx = (lunar_day - 1 + 6) % 15
     return MULDDAE_NAMES[idx], idx
 
 
@@ -1006,10 +1030,12 @@ if tide_data and tide_data.get("mulddae"):
     mulddae = tide_data["mulddae"]
     stars = tide_data["strength_pct"] if tide_data.get("strength_pct") is not None else "-"
     mulddae_is_real = True
+    mulddae_inferred = bool(tide_data.get("inferred"))
 else:
     mulddae, mulddae_idx = estimate_mulddae(target)
     stars = mulddae_strength_percent(mulddae_idx)
     mulddae_is_real = False
+    mulddae_inferred = False
 
 weather_html = f"<div class='env-value'>예보 범위 밖</div><div class='env-sub'>보통 16일 이내만 제공</div>"
 sea_html = f"<div class='env-value'>-</div><div class='env-sub'>조회 실패/범위 밖</div>"
@@ -1061,8 +1087,8 @@ st.markdown(f"""
   <div class="env-card tide">
     <div class="env-label">🌊 {target.strftime('%m/%d')} 물때</div>
     <div class="env-value">{mulddae}</div>
-    <div class="env-sub">{"참고용 추정치" if not mulddae_is_real else ""}</div>
-    <div class="env-src">출처: {"국립해양조사원(badatime.com)" if mulddae_is_real else "자체 계산(음력 근사치)"}</div>
+    <div class="env-sub">{"참고용 추정치" if (not mulddae_is_real or mulddae_inferred) else ""}</div>
+    <div class="env-src">출처: {"전·후일 물때표로 계산(badatime.com)" if mulddae_inferred else ("국립해양조사원(badatime.com)" if mulddae_is_real else "자체 계산(음력 근사치)")}</div>
   </div>
   <div class="env-card strength">
     <div class="env-label">🌀 조류세기</div>
