@@ -1417,9 +1417,9 @@
     "catches": [
       {
         "angler": "인현태",
-        "species": "쭈구미",
-        "count": 2,
-        "unit": "마리"
+        "species": "주꾸미",
+        "count": 1.9,
+        "unit": "kg"
       },
       {
         "angler": "인현태",
@@ -1429,9 +1429,9 @@
       },
       {
         "angler": "한영탁",
-        "species": "쭈구미",
-        "count": 3,
-        "unit": "마리"
+        "species": "주꾸미",
+        "count": 3.2,
+        "unit": "kg"
       },
       {
         "angler": "한영탁",
@@ -1441,9 +1441,9 @@
       },
       {
         "angler": "최귀선",
-        "species": "쭈구미",
-        "count": 2,
-        "unit": "마리"
+        "species": "주꾸미",
+        "count": 2.1,
+        "unit": "kg"
       },
       {
         "angler": "최귀선",
