@@ -1465,7 +1465,57 @@
       "김정국",
       "최귀선"
     ],
-    "catches": [],
-    "memo": "6시출항. 선실 양쪽 2칸씩 비워진게 특징"
+    "catches": [
+      {
+        "angler": "인현태",
+        "species": "주꾸미",
+        "count": 3.3,
+        "unit": "kg"
+      },
+      {
+        "angler": "인현태",
+        "species": "갑",
+        "count": 20,
+        "unit": "마리"
+      },
+      {
+        "angler": "한영탁",
+        "species": "주꾸미",
+        "count": 3.5,
+        "unit": "kg"
+      },
+      {
+        "angler": "한영탁",
+        "species": "갑",
+        "count": 29,
+        "unit": "마리"
+      },
+      {
+        "angler": "김정국",
+        "species": "주꾸미",
+        "count": 2.7,
+        "unit": "kg"
+      },
+      {
+        "angler": "김정국",
+        "species": "갑",
+        "count": 16,
+        "unit": "마리"
+      },
+      {
+        "angler": "최귀선",
+        "species": "주꾸미",
+        "count": 5.5,
+        "unit": "kg"
+      },
+      {
+        "angler": "최귀선",
+        "species": "갑",
+        "count": 38,
+        "unit": "마리"
+      }
+    ],
+    "memo": "6시출항. 선실 양쪽 2칸씩 비워진게 특징.\n결론적으로 나 제외 모두 개인갑이기록인데.\n나머지 사람들은 80수.70수.45수등 수두룩\n\n",
+    "exclude_from_catch_stats": false
   }
 ]
