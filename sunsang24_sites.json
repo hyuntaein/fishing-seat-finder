@@ -137,5 +137,14 @@
     "port": "남항부두",
     "youtuber": "생활낚시광",
     "base_url": "https://supernova.sunsang24.com/ship/info"
+  },
+  {
+    "name": "자연피싱호",
+    "main_species": "갑오징어",
+    "region": "충남",
+    "city": "태안",
+    "port": "마검포항",
+    "youtuber": "밍스타",
+    "base_url": "https://nature.sunsang24.com/ship/schedule_fleet"
   }
 ]
