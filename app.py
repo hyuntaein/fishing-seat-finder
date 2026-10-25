@@ -19,6 +19,7 @@ RESERVATION_FILE = APP_DIR / "reservations.json"
 SITE_PREF_FILE = APP_DIR / "site_preferences.json"
 PERSONAL_RECORD_FILE = APP_DIR / "personal_records.json"
 BOOKING_WATCH_FILE = APP_DIR / "booking_watch_log.json"
+PLAN_FILE = APP_DIR / "private_plan.json"
 
 ANGLERS = ["인현태", "조정환", "한영탁", "김정국", "최귀선", "손님"]
 
@@ -1226,6 +1227,14 @@ with left:
 
 
     keyword = st.text_input("선사명 검색", placeholder="예: 참바다, 루키나")
+    # 비밀 메모칸: 선사명 검색칸에 비밀 단어를 입력하면 출조 기록 안에 나타난다 (평소엔 존재가 보이지 않음)
+    try:
+        _plan_key = str(st.secrets.get("PLAN_KEY", "/내계획"))
+    except Exception:
+        _plan_key = "/내계획"
+    if keyword.strip() == _plan_key:
+        st.session_state.plan_unlocked = True
+        keyword = ""
 
     search = st.button("🔎 실시간 조회", type="primary", use_container_width=True)
 
@@ -1511,6 +1520,24 @@ with right:
             st.caption("등록된 사이트가 없습니다.")
 
     with st.expander(f"🎣 출조 기록 보기 (총 {len(fishing_logs)}건, 최신순)"):
+        if st.session_state.get("plan_unlocked"):
+            _plan = load_json(PLAN_FILE, {})
+            st.markdown("**📝 나만의 계획**")
+            plan_text = st.text_area("메모", value=_plan.get("memo", "") if isinstance(_plan, dict) else "",
+                                     height=140, key="plan_memo_text", label_visibility="collapsed")
+            pc1, pc2 = st.columns(2)
+            if pc1.button("💾 메모 저장", key="plan_save", use_container_width=True):
+                _data = {"memo": plan_text}
+                save_json(PLAN_FILE, _data)
+                ok, msg = commit_to_github("private_plan.json", _data)
+                if ok:
+                    st.success("저장했습니다.")
+                else:
+                    st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
+            if pc2.button("🔒 잠그기", key="plan_lock", use_container_width=True):
+                st.session_state.plan_unlocked = False
+                st.rerun()
+            st.divider()
         if fishing_logs:
             order = sorted(range(len(fishing_logs)), key=lambda i: fishing_logs[i]["date"], reverse=True)
 
