@@ -19,7 +19,11 @@ RESERVATION_FILE = APP_DIR / "reservations.json"
 SITE_PREF_FILE = APP_DIR / "site_preferences.json"
 PERSONAL_RECORD_FILE = APP_DIR / "personal_records.json"
 BOOKING_WATCH_FILE = APP_DIR / "booking_watch_log.json"
-PLAN_FILE = APP_DIR / "private_plan.json"
+
+try:
+    PLAN_KEY = str(st.secrets.get("PLAN_KEY", "1077"))
+except Exception:
+    PLAN_KEY = "1077"
 
 ANGLERS = ["인현태", "조정환", "한영탁", "김정국", "최귀선", "손님"]
 
@@ -1227,14 +1231,6 @@ with left:
 
 
     keyword = st.text_input("선사명 검색", placeholder="예: 참바다, 루키나")
-    # 비밀 메모칸: 선사명 검색칸에 비밀 단어를 입력하면 출조 기록 안에 나타난다 (평소엔 존재가 보이지 않음)
-    try:
-        _plan_key = str(st.secrets.get("PLAN_KEY", "/내계획"))
-    except Exception:
-        _plan_key = "/내계획"
-    if keyword.strip() == _plan_key:
-        st.session_state.plan_unlocked = True
-        keyword = ""
 
     search = st.button("🔎 실시간 조회", type="primary", use_container_width=True)
 
@@ -1400,6 +1396,15 @@ with left:
                 log_catches.extend([{"angler": a, **c} for c in parse_catch_text(txt)])
 
         log_memo = st.text_area("메모", placeholder="자리, 물때, 특이사항 등", key="log_memo", height=100)
+        if log_memo.strip() == PLAN_KEY:  # 비밀 단어: 나만의 계획칸이 나타남 (저장되지는 않음)
+            st.session_state.plan_unlocked = True
+            log_memo = ""
+        log_private = ""
+        if st.session_state.get("plan_unlocked"):
+            log_private = st.text_area("🔒 나만의 계획 (나에게만 보여요)", key="log_private", height=100)
+            if st.button("🙈 계획칸 숨기기", key="plan_hide_new"):
+                st.session_state.plan_unlocked = False
+                st.rerun()
         if st.button("기록 저장", key="log_save_btn"):
             if log_ship and log_anglers:
                 fishing_logs.append({
@@ -1409,6 +1414,7 @@ with left:
                     "anglers": log_anglers,
                     "catches": log_catches,
                     "memo": log_memo,
+                    **({"private_plan": log_private} if log_private.strip() else {}),
                 })
                 save_json(LOG_FILE, fishing_logs)
                 ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
@@ -1520,24 +1526,6 @@ with right:
             st.caption("등록된 사이트가 없습니다.")
 
     with st.expander(f"🎣 출조 기록 보기 (총 {len(fishing_logs)}건, 최신순)"):
-        if st.session_state.get("plan_unlocked"):
-            _plan = load_json(PLAN_FILE, {})
-            st.markdown("**📝 나만의 계획**")
-            plan_text = st.text_area("메모", value=_plan.get("memo", "") if isinstance(_plan, dict) else "",
-                                     height=140, key="plan_memo_text", label_visibility="collapsed")
-            pc1, pc2 = st.columns(2)
-            if pc1.button("💾 메모 저장", key="plan_save", use_container_width=True):
-                _data = {"memo": plan_text}
-                save_json(PLAN_FILE, _data)
-                ok, msg = commit_to_github("private_plan.json", _data)
-                if ok:
-                    st.success("저장했습니다.")
-                else:
-                    st.warning(f"임시 저장은 됐지만 GitHub 자동 저장은 실패했어요: {msg}")
-            if pc2.button("🔒 잠그기", key="plan_lock", use_container_width=True):
-                st.session_state.plan_unlocked = False
-                st.rerun()
-            st.divider()
         if fishing_logs:
             order = sorted(range(len(fishing_logs)), key=lambda i: fishing_logs[i]["date"], reverse=True)
 
@@ -1564,6 +1552,7 @@ with right:
                         + (f"<div style='font-size:13px;color:#12977A;font-weight:700;margin-top:3px'>🐟 {catch_txt}</div>" if catch_txt else "")
                         + f"<div style='font-size:12.5px;color:#7a8794;margin-top:2px'>출조자: {', '.join(log.get('anglers', []))}</div>"
                         + (f"<div style='font-size:13.5px;color:#33474f;margin-top:6px;white-space:normal'>{memo_txt}</div>" if memo_txt else "")
+                        + (f"<div style='font-size:13px;color:#6d28d9;background:#f3e8ff;border-radius:8px;padding:6px 10px;margin-top:6px;white-space:normal'>🔒 {(log.get('private_plan') or '').replace(chr(10), '<br>')}</div>" if (st.session_state.get('plan_unlocked') and log.get('private_plan')) else "")
                         + "</div>",
                         unsafe_allow_html=True,
                     )
@@ -1610,6 +1599,15 @@ with right:
                         e_memo = st.text_area(
                             "메모", value=target_log.get("memo", ""), key=f"edit_log_memo_{orig_idx}", height=100
                         )
+                        if e_memo.strip() == PLAN_KEY:  # 비밀 단어
+                            st.session_state.plan_unlocked = True
+                            e_memo = target_log.get("memo", "")
+                        e_private = target_log.get("private_plan", "")
+                        if st.session_state.get("plan_unlocked"):
+                            e_private = st.text_area(
+                                "🔒 나만의 계획 (나에게만 보여요)", value=target_log.get("private_plan", ""),
+                                key=f"edit_log_private_{orig_idx}", height=100,
+                            )
                         e_exclude = st.checkbox(
                             "마릿수 통계에서 제외 (배 통계에는 포함)",
                             value=target_log.get("exclude_from_catch_stats", False),
@@ -1626,6 +1624,7 @@ with right:
                                 "catches": e_catches,
                                 "memo": e_memo,
                                 "exclude_from_catch_stats": e_exclude,
+                                **({"private_plan": e_private} if e_private.strip() else {}),
                             }
                             save_json(LOG_FILE, fishing_logs)
                             ok, msg = commit_to_github("fishing_logs.json", fishing_logs)
