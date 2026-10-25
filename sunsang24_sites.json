@@ -146,5 +146,14 @@
     "port": "마검포항",
     "youtuber": "밍스타",
     "base_url": "https://nature.sunsang24.com/ship/schedule_fleet"
+  },
+  {
+    "name": "코리아호",
+    "main_species": "갑오징어",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "youtuber": "",
+    "base_url": "https://arakhaeng.sunsang24.com"
   }
 ]
