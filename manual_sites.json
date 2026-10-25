@@ -179,5 +179,14 @@
     "city": "태안",
     "port": "구매항",
     "url": "https://eoulim.thefishing.kr/"
+  },
+  {
+    "name": "블루피싱호",
+    "main_species": "갑오징어",
+    "region": "충남",
+    "city": "태안 신진도",
+    "port": "안흥항",
+    "youtuber": "충남청년",
+    "url": "https://bluefishingho.thefishing.kr/"
   }
 ]
