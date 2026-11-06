@@ -28,5 +28,15 @@
     "url": "http://xn--699a34m98bb62c.kr/",
     "_type": "manual",
     "_deleted_at": "2026-09-27 09:39"
+  },
+  {
+    "name": "아리울호",
+    "main_species": "참돔",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://ariul.sunsang24.com",
+    "_type": "sunsang24",
+    "_deleted_at": "2026-11-06 03:49"
   }
 ]
