@@ -155,5 +155,14 @@
     "port": "비응항",
     "youtuber": "",
     "base_url": "https://arakhaeng.sunsang24.com"
+  },
+  {
+    "name": "에버스타호",
+    "main_species": "갑오징어",
+    "region": "충남",
+    "city": "서천",
+    "port": "홍원항",
+    "youtuber": "",
+    "base_url": "https://everstar.sunsang24.com"
   }
 ]
