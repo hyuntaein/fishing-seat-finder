@@ -69,5 +69,15 @@
     "url": "http://newhawaii.co.kr/",
     "_type": "manual",
     "_deleted_at": "2026-11-06 03:50"
+  },
+  {
+    "name": "가이아호",
+    "main_species": "참돔,광어",
+    "region": "충남",
+    "city": "보령",
+    "port": "오천항",
+    "url": "http://www.gaiaho.com/index.php?mid=map",
+    "_type": "manual",
+    "_deleted_at": "2026-11-06 03:50"
   }
 ]
