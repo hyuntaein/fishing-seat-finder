@@ -48,5 +48,15 @@
     "base_url": "https://sharkho.sunsang24.com/ship/board",
     "_type": "sunsang24",
     "_deleted_at": "2026-11-06 03:49"
+  },
+  {
+    "name": "뉴항구호",
+    "main_species": "광어",
+    "region": "충남",
+    "city": "태안",
+    "port": "삼길포항",
+    "base_url": "https://daebak.sunsang24.com",
+    "_type": "sunsang24",
+    "_deleted_at": "2026-11-06 03:50"
   }
 ]
