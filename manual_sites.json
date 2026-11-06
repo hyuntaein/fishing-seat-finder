@@ -206,5 +206,14 @@
     "port": "무창포항",
     "youtuber": "유튜버",
     "url": "https://ssfish.thefishing.kr/index.php?mid=bk&year=2026&month=12&day=16&mode=list&PA_N_UID=5804"
+  },
+  {
+    "name": "천일호",
+    "main_species": "갑오징어",
+    "region": "충남",
+    "city": "태안",
+    "port": "방포항",
+    "youtuber": "",
+    "url": "https://fishing1001.thefishing.kr/"
   }
 ]
