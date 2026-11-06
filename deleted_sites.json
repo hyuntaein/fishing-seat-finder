@@ -58,5 +58,16 @@
     "base_url": "https://daebak.sunsang24.com",
     "_type": "sunsang24",
     "_deleted_at": "2026-11-06 03:50"
+  },
+  {
+    "name": "뉴하와이호",
+    "youtuber": "생활낚시광",
+    "main_species": "참돔,광어",
+    "region": "충남",
+    "city": "태안",
+    "port": "마검포항",
+    "url": "http://newhawaii.co.kr/",
+    "_type": "manual",
+    "_deleted_at": "2026-11-06 03:50"
   }
 ]
