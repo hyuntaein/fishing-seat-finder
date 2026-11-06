@@ -38,5 +38,15 @@
     "base_url": "https://ariul.sunsang24.com",
     "_type": "sunsang24",
     "_deleted_at": "2026-11-06 03:49"
+  },
+  {
+    "name": "군산 샤크호",
+    "main_species": "광어",
+    "region": "전북",
+    "city": "군산",
+    "port": "비응항",
+    "base_url": "https://sharkho.sunsang24.com/ship/board",
+    "_type": "sunsang24",
+    "_deleted_at": "2026-11-06 03:49"
   }
 ]
