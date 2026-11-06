@@ -197,5 +197,14 @@
     "port": "안흥항",
     "youtuber": "충남청년",
     "url": "https://haeduk.thefishing.kr/index.php"
+  },
+  {
+    "name": "짱가호",
+    "main_species": "갑오징어",
+    "region": "인천·경기",
+    "city": "보령",
+    "port": "무창포항",
+    "youtuber": "유튜버",
+    "url": "https://ssfish.thefishing.kr/index.php?mid=bk&year=2026&month=12&day=16&mode=list&PA_N_UID=5804"
   }
 ]
